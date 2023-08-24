@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - upgrade-deps
+      - main
 
 jobs:
 
@@ -16,9 +16,6 @@ jobs:
         run: |
           rustup update
           rustup component add clippy
-
-      - run: cp $PWD/.github/access/gitconfig ~/.gitconfig
-      - run: echo ${{ secrets.DEPLOY_GIT_CREDENTIALS }} > ~/.git-credentials
 
       - name: Lint
         run: |
