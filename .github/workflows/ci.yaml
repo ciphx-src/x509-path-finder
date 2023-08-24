@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - upgrade-deps
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Update local toolchain
+        run: |
+          rustup update
+          rustup component add clippy
+
+      - run: cp $PWD/.github/access/gitconfig ~/.gitconfig
+      - run: echo ${{ secrets.DEPLOY_GIT_CREDENTIALS }} > ~/.git-credentials
+
+      - name: Lint
+        run: |
+          cargo fmt -- --check
+          cargo clippy --all-features -- -D warnings          
+
+      - name: Test
+        run: |
+          cargo check --all-features
+          cargo test --all --all-features
+
+      - name: Build
+        run: |
+          cargo build --all-features --release   
