@@ -150,6 +150,7 @@ where
 
                 // return issuer candidates from store or try aia
                 if !store_candidates.is_empty() {
+                    // append any aia edges
                     let aia_urls = edge_certificate.aia();
                     let mut aia_edges = aia_urls
                         .into_iter()
