@@ -1,30 +1,28 @@
 use crate::api::Certificate;
 use crate::api::{CertificatePathValidation, PathValidator, PathValidatorError};
 use crate::report::{CertificatePath, ValidateFailure};
+use crate::tests::test_certificate::certificate::TestCertificate;
 use crate::X509PathFinderError;
-use std::marker::PhantomData;
 
-pub struct TestPathValidator<'r, C: Certificate<'r>> {
-    roots: Vec<C>,
-    lifetime: PhantomData<&'r C>,
+pub struct TestPathValidator<'r> {
+    roots: Vec<TestCertificate<'r>>,
 }
-impl<'r, C: Certificate<'r>> TestPathValidator<'r, C> {
-    pub fn new<I: Into<C>>(roots: Vec<I>) -> Self {
+impl<'r> TestPathValidator<'r> {
+    pub fn new<I: Into<TestCertificate<'r>>>(roots: Vec<I>) -> Self {
         Self {
             roots: roots.into_iter().map(|c| c.into()).collect(),
-            lifetime: PhantomData,
         }
     }
 }
 
-impl<'r, C: Certificate<'r>> PathValidator<'r> for TestPathValidator<'r, C> {
-    type Certificate = C;
+impl<'r> PathValidator<'r> for TestPathValidator<'r> {
+    type Certificate = TestCertificate<'r>;
     type PathValidatorError = X509PathFinderError;
 
     fn validate(
         &self,
-        path: Vec<C>,
-    ) -> Result<CertificatePathValidation<'r, C>, Self::PathValidatorError> {
+        path: Vec<Self::Certificate>,
+    ) -> Result<CertificatePathValidation<'r, Self::Certificate>, Self::PathValidatorError> {
         let leaf = match path.last() {
             None => {
                 return Ok(CertificatePathValidation::NotFound(ValidateFailure {
