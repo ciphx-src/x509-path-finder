@@ -1,10 +1,10 @@
 # X509 Path Finder
 
-X509 Path Finder is a depth-first search certificate path validator for Rust.
+X509 Path Finder is a [depth-first search](https://en.wikipedia.org/wiki/Depth-first_search) certificate path validator for Rust.
 
 ![CI Status](https://github.com/merlincinematic/x509-path-finder/actions/workflows/ci.yaml/badge.svg)
 
-![Depth-first search](./doc/find.png)
+![Depth-first search](https://github.com/merlincinematic/x509-path-finder/raw/master/doc/find.png#2)
 
 ## Synopsis
 
