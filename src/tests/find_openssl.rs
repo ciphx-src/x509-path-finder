@@ -1,14 +1,12 @@
 use crate::api::CertificateStore;
-use crate::provided::certificate::openssl::OpenSSLCertificateIterator;
 use crate::provided::store::DefaultCertificateStore;
 use crate::provided::validator::openssl::OpenSSLPathValidator;
 use crate::report::CertificateOrigin;
 use crate::tests::material::load_material;
-use crate::{X509ClientType, X509PathFinder, X509PathFinderConfiguration};
+use crate::{NoAIA, X509PathFinder, X509PathFinderConfiguration, AIA};
 use openssl::x509::store::X509StoreBuilder;
 use openssl::x509::verify::X509VerifyFlags;
 use openssl::x509::X509;
-use std::marker::PhantomData;
 use std::time::Duration;
 
 #[tokio::test]
@@ -28,7 +26,7 @@ async fn test_find() {
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
-        client: X509ClientType::None(PhantomData::<OpenSSLCertificateIterator>),
+        aia: AIA::None(NoAIA::default()),
         store,
         validator,
     });

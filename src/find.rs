@@ -1,21 +1,16 @@
 use std::collections::VecDeque;
-#[cfg(not(test))]
-use std::convert::Infallible;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::vec;
 
 use url::Url;
 use x509_client::api::X509Iterator;
-#[cfg(not(test))]
-use x509_client::X509Client;
 use x509_client::{X509ClientError, X509ClientResult};
 
 use crate::api::{Certificate, CertificatePathValidation, CertificateStore, PathValidator};
 use crate::edge::{Edge, EdgeDisposition, Edges};
 use crate::report::{CertificateOrigin, Report};
-use crate::{X509PathFinderError, X509PathFinderResult};
+use crate::{X509PathFinderError, X509PathFinderResult, AIA};
 
 /// [`X509PathFinder`](crate::X509PathFinder) configuration
 #[derive(Clone)]
@@ -29,39 +24,11 @@ where
     /// limit runtime of path search. Actual limit will be N * HTTP timeout. See `Reqwest` docs for setting HTTP connection timeout.
     pub limit: Duration,
     /// Optional client to find additional certificates by parsing URLs from [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extensions
-    pub client: X509ClientType<'r, X, C>,
+    pub aia: AIA<'r, X, C>,
     /// [`CertificateStore`](crate::api::CertificateStore) implementation
     pub store: S,
     /// [`PathValidator`](crate::api::PathValidator) implementation
     pub validator: V,
-}
-
-/// Configure optional AIA X509Client
-#[cfg(not(test))]
-#[derive(Clone)]
-pub enum X509ClientType<'r, X, C>
-where
-    X: X509Iterator<Item = C>,
-    C: Certificate<'r>,
-{
-    /// No AIA, supply `PhantomData::<X509Iterator>`
-    None(PhantomData<X>),
-    /// Use AIA, supply X509Client with iterator
-    Client(X509Client<X>),
-    #[doc(hidden)]
-    _Lifetime(Infallible, PhantomData<&'r X>),
-}
-
-#[cfg(test)]
-#[derive(Clone)]
-pub enum X509ClientType<'r, X, C>
-where
-    X: X509Iterator<Item = C>,
-    C: Certificate<'r>,
-{
-    None(PhantomData<X>),
-    Client(PhantomData<X>),
-    _Lifetime(PhantomData<&'r X>),
 }
 
 /// X509 Path Finder
@@ -227,7 +194,11 @@ where
         url: Arc<Url>,
     ) -> X509PathFinderResult<Vec<Edge<'r, C>>> {
         let mut candidates = vec![];
-        for candidate in self.get_all(url.as_ref()).await? {
+        for candidate in self
+            .get_all(url.as_ref())
+            .await
+            .unwrap_or_else(|_| X::from_iter(vec![]))
+        {
             self.config.store.insert(candidate.clone())?;
 
             // filtering out self-signed
@@ -260,7 +231,7 @@ where
         parent_certificate: &C,
     ) -> Vec<Edge<'r, C>> {
         // aia disabled, return end edge
-        if let X509ClientType::None(_) = &self.config.client {
+        if let AIA::None(_) = &self.config.aia {
             return vec![edges.edge_from_end(Some(parent_edge.clone()))];
         }
 
@@ -284,7 +255,7 @@ where
 
     #[cfg(not(test))]
     async fn get_all(&self, url: &Url) -> X509ClientResult<X> {
-        if let X509ClientType::Client(client) = &self.config.client {
+        if let AIA::Client(client) = &self.config.aia {
             client.get_all(url).await
         } else {
             Ok(X::from_iter(vec![]))

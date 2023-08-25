@@ -37,55 +37,67 @@ x509_path_finder = { version = "0.2", features = ["openssl"] }
 
 ### Example
 
-```` rust
+```` rust no_run
+
 use x509_path_finder::api::CertificateStore;
 use x509_path_finder::provided::certificate::openssl::OpenSSLCertificateIterator;
 use x509_path_finder::provided::store::DefaultCertificateStore;
 use x509_path_finder::provided::validator::openssl::OpenSSLPathValidator;
-use x509_path_finder::report::CertificateOrigin;
-use x509_path_finder::{X509ClientType, X509PathFinder, X509PathFinderConfiguration};
-use openssl::x509::store::X509StoreBuilder;
+use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration, X509PathFinderResult, AIA, NoAIA};
+use openssl::x509::store::{X509Store, X509StoreBuilder};
 use openssl::x509::verify::X509VerifyFlags;
 use openssl::x509::X509;
 use std::marker::PhantomData;
 use std::time::Duration;
 
-#[tokio::test]
-async fn test() { 
-    // load certificates with OpenSSL
-    let certificates = X509::stack_from_pem(load_certificate())?;
-    let root = X509::from_der(load_root())?;
+async fn test() -> X509PathFinderResult<()> {
+    // load certificates
+    let (root, certificates) = load_certificates().unwrap();
 
     // create store, load in certificates
-    let store = DefaultCertificateStore::from_iter(certificates);
-    
-    // create OpenSSL store
-    let mut builder = X509StoreBuilder::new()?;
-    builder.add_cert(root)?;
-    builder.set_flags(X509VerifyFlags::X509_STRICT)?;
-    
+    let store = DefaultCertificateStore::from_iter(&certificates);
+
+    // build openssl store for validator
+    let openssl_store = build_openssl_store(root).unwrap();
+
     // Instantiate validator with OpenSSL store
-    let validator = OpenSSLPathValidator::new(builder.build());
-    
+    let validator = OpenSSLPathValidator::new(openssl_store);
+
     // Instantiate finder with store and validator
     let mut finder = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
-        client: X509ClientType::None(PhantomData::<OpenSSLCertificateIterator>),
+        aia: AIA::None(NoAIA::default()),
         store,
         validator,
     });
-    
+
     // Find a path, starting with first certificate
     let report = finder.find(certificates[0].as_ref()).await?;
-    let path = report.path?.into_iter().collect::<Vec<X509>>();
+    let path = report.path.unwrap().into_iter().collect::<Vec<X509>>();
     assert_eq!(2, path.len());
 
     // Find a path, starting with second certificate
-    let report = search.find(certificates[1].as_ref()).await?;
-    let path = report.path?.into_iter().collect::<Vec<X509>>();
+    let report = finder.find(certificates[1].as_ref()).await?;
+    let path = report.path.unwrap().into_iter().collect::<Vec<X509>>();
     assert_eq!(1, path.len());
+
+    Ok(())
 }
 
+// load certificates with OpenSSL
+fn load_certificates() -> Result<(X509, Vec<X509>), openssl::error::ErrorStack> {
+    let root = X509::from_pem(&[])?;
+    let certificates = X509::stack_from_pem(&[])?;
+    Ok((root, certificates))
+}
+
+// create OpenSSL store
+fn build_openssl_store(root: X509) -> Result<X509Store, openssl::error::ErrorStack> {
+    let mut builder = X509StoreBuilder::new()?;
+    builder.add_cert(root)?;
+    builder.set_flags(X509VerifyFlags::X509_STRICT)?;
+    Ok(builder.build())
+}
 
 ````
 
@@ -94,10 +106,29 @@ async fn test() {
 
 The  [`X509PathFinderConfiguration`](crate::X509PathFinderConfiguration) struct has the following fields.
 
-* `limit`: limit runtime of path search. Actual limit will be N * HTTP timeout. See `Reqwest` docs for setting HTTP connection timeout.
-* `client`: Optional client to find additional certificates by parsing URLs from [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extensions
+* `limit`: limit runtime of path search. Actual limit will be N * HTTP timeout. See [` reqwest::ClientBuilder::timeout`](https://docs.rs/reqwest/0.11.20/reqwest/struct.ClientBuilder.html#method.timeout) for setting HTTP connection timeout.
+* `aia`: [`AIA`](crate::AIA) enum to configure [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extensions.
+
+To enable AIA:
+```` text
+  AIA::Client(MyX509Client::new())
+````  
+
+To disable AIA:
+```` text
+  AIA::None(NoAIA::default())
+````  
 * `store` - [`CertificateStore`](crate::api::CertificateStore) implementation
 * `validator`: [`PathValidator`](crate::api::PathValidator) implementation
+
+#### Resource Management
+
+Because X509 Path Builder can consume AIA URLs from the web, a call to [`X509PathFinder::find`](crate::X509PathFinder::find) could in theory run forever, or be coerced into downloading vast amounts of data. Configuration options for managing X509 Path Finder resources:
+
+* Set the `limit` duration to non-zero for  [`X509PathFinderConfiguration::limit`](crate::X509PathFinderConfiguration::limit)
+* Set the [` reqwest::ClientBuilder::timeout`](https://docs.rs/reqwest/0.11.20/reqwest/struct.ClientBuilder.html#method.timeout) to a more aggressive value
+* Limit download size by setting [`x509_client::X509ClientConfiguration::limit`](https://docs.rs/x509-client/2.0.1/x509_client/struct.X509ClientConfiguration.html#structfield.limit) to a non-zero value
+* Disable AIA
 
 ### Finding Paths
 
@@ -156,4 +187,3 @@ The following API implementations are provided with the X509 Path Finder crate:
 
 * [RustCrypto-based](https://github.com/RustCrypto) implementations for  [`Certificate`](crate::api::Certificate) and  [`PathValidator`](crate::api::PathValidator) 
 * Parallel downloading of AIA URLs
-* Defunk the [`X509PathFinderConfiguration::client`](crate::X509PathFinderConfiguration::client) field

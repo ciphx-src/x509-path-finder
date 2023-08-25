@@ -4,7 +4,7 @@ use crate::report::CertificateOrigin;
 use crate::tests::test_certificate::certificate::TestCertificateNative;
 use crate::tests::test_certificate::iter::TestCertificateIterator;
 use crate::tests::validator::TestPathValidator;
-use crate::{X509ClientType, X509PathFinder, X509PathFinderConfiguration};
+use crate::{NoAIA, X509PathFinder, X509PathFinderConfiguration, AIA};
 use std::marker::PhantomData;
 use std::time::Duration;
 
@@ -14,7 +14,7 @@ async fn test_first_path_found_no_aia() {
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
-        client: X509ClientType::None(PhantomData::<TestCertificateIterator>),
+        aia: AIA::None(NoAIA::default()),
         store,
         validator: TestPathValidator::new(vec![TestCertificateNative {
             issuer: 0,
@@ -77,15 +77,17 @@ async fn test_first_path_found_no_aia() {
 async fn test_first_path_end_no_aia() {
     let store = DefaultCertificateStore::from_iter(build_certificates());
 
+    let validator = TestPathValidator::new(vec![TestCertificateNative {
+        issuer: 100,
+        subject: 100,
+        aia: vec![],
+    }]);
+
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
-        client: X509ClientType::None(PhantomData::<TestCertificateIterator>),
+        aia: AIA::None(NoAIA::default()),
         store,
-        validator: TestPathValidator::new(vec![TestCertificateNative {
-            issuer: 100,
-            subject: 100,
-            aia: vec![],
-        }]),
+        validator,
     });
 
     let report = search
@@ -186,7 +188,7 @@ async fn test_only_aia() {
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
-        client: X509ClientType::Client(PhantomData::<TestCertificateIterator>),
+        aia: AIA::Client(PhantomData::<TestCertificateIterator>),
         store,
         validator: TestPathValidator::new(vec![&root]),
     });
@@ -261,7 +263,7 @@ async fn test_bridge_aia() {
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Default::default(),
-        client: X509ClientType::Client(PhantomData::<TestCertificateIterator>),
+        aia: AIA::Client(PhantomData::<TestCertificateIterator>),
         store: store.clone(),
         validator: TestPathValidator::new(vec![root.clone()]),
     });
@@ -290,7 +292,7 @@ async fn test_bridge_aia() {
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Default::default(),
-        client: X509ClientType::Client(PhantomData::<TestCertificateIterator>),
+        aia: AIA::Client(PhantomData::<TestCertificateIterator>),
         store: store.clone(),
         validator: TestPathValidator::new(vec![bridge_authority]),
     });
