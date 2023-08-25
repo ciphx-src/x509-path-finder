@@ -24,14 +24,14 @@ By default, you'll need to implement your own [PathValidator](crate::api::PathVa
 
 ````text
 [dependencies]
-x509_path_finder = { version = "0.2"] }
+x509_path_finder = { version = "0.3"] }
 ````
 
 Or, enable the `openssl` feature for access to the provided [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) validator.
 
 ````text
 [dependencies]
-x509_path_finder = { version = "0.2", features = ["openssl"] }
+x509_path_finder = { version = "0.3", features = ["openssl"] }
 ````
 
 
