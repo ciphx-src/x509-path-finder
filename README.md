@@ -4,6 +4,8 @@ X509 Path Finder is a depth-first search certificate path validator for Rust.
 
 ![CI Status](https://github.com/merlincinematic/x509-path-finder/actions/workflows/ci.yaml/badge.svg)
 
+![Depth-first search](./doc/find.png)
+
 ## Synopsis
 
 X509 Path Finder rejects the notion of a single "certificate chain." Instead, it searches for the first match out of infinity. Once it finds a path it can validate, the search halts and the path is returned to the caller.
