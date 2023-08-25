@@ -1,0 +1,55 @@
+@startuml
+
+start
+
+: add start edge to queue;
+
+repeat :take next edge from queue;
+
+    if (edge is end?) then (yes)
+        : start with end edge, follow parents and build path;
+        if (path validates) then (yes)
+            :return validated path;
+            break;
+        else (no)
+        endif
+    endif
+
+    if (edge visited?) then (yes)
+    else (no)
+        : mark edge visited;
+
+        if (is certificate edge) then (yes)
+            : search certificate issuers in store;
+            if (has issuers?) then (yes)
+                :add issuers to queue;
+                :append issuers edges to parent edge;
+            else (no)
+                if (has aia?) then (yes)
+                    :add aia url edges to queue;
+                    :append url edges to parent edge;
+                else (no)
+                    : add end edge to queue;
+                endif
+            endif
+        else (no)
+            if (is aia url edge?) then (yes)
+                : download certificate(s) with url;
+                if (certificate(s) is/are issuer?) then (yes)
+                    :add new certificate(s) edge to queue;
+                    :append new certificate edge(s) to parent edge;
+                endif
+            else (no)
+                : add end edge to queue;
+            endif
+        endif
+    endif
+repeat while(queue has next edge?)
+->no;
+stop
+
+
+
+
+@enduml
+
