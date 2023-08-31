@@ -1,6 +1,6 @@
 [package]
 name = "x509-path-finder"
-version = "0.3.2"
+version = "0.3.5"
 edition = "2021"
 authors = ["Curtis Lee Fulton <curtis@ciphx.com>"]
 repository = "https://github.com/merlincinematic/x509-path-finder"
