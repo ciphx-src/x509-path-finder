@@ -1,8 +1,10 @@
 # X509 Path Finder
 
-X509 Path Finder is a depth-first search certificate path validator for Rust.
+X509 Path Finder is a [depth-first search](https://en.wikipedia.org/wiki/Depth-first_search) certificate path validator for Rust.
 
 ![CI Status](https://github.com/merlincinematic/x509-path-finder/actions/workflows/ci.yaml/badge.svg)
+
+![Depth-first search](https://github.com/merlincinematic/x509-path-finder/raw/master/doc/find.png#2)
 
 ## Synopsis
 
@@ -24,14 +26,14 @@ By default, you'll need to implement your own [PathValidator](crate::api::PathVa
 
 ````text
 [dependencies]
-x509_path_finder = { version = "0.2"] }
+x509_path_finder = { version = "0.3"] }
 ````
 
 Or, enable the `openssl` feature for access to the provided [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) validator.
 
 ````text
 [dependencies]
-x509_path_finder = { version = "0.2", features = ["openssl"] }
+x509_path_finder = { version = "0.3", features = ["openssl"] }
 ````
 
 
@@ -138,7 +140,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 
 * `path`: on validate success, `Option::Some` holds [`CertificatePath`](crate::report::CertificatePath) iterator.
 * `origin`: on validate success, `Option::Some` holds a list of [`CertificateOrigin`](crate::report::CertificateOrigin) values
-* `duration`: duration of path search 
+* `duration`: duration of path search
 * `failures`: any validation failures reported by [`PathValidator`](crate::api::PathValidator) implementation are held in [`ValidateFailure`](crate::report::ValidateFailure)
 
 #### CertificatePath
@@ -163,7 +165,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 X509 Path Finder can be extended with three traits:
 
 * [`Certificate`](crate::api::Certificate) - model-agnostic representation of an X509 certificate. Implement this trait to add more certificates models
-* [`CertificateStore`](crate::api::CertificateStore) - certificate store API. Implement this trait to make stores with different persistence strategies 
+* [`CertificateStore`](crate::api::CertificateStore) - certificate store API. Implement this trait to make stores with different persistence strategies
 * [`PathValidator`](crate::api::PathValidator) - path validator API. Implement this trait to use different backend authorities to validate certificate paths.
 
 ### Implementations
@@ -185,5 +187,5 @@ The following API implementations are provided with the X509 Path Finder crate:
 
 ## TODO
 
-* [RustCrypto-based](https://github.com/RustCrypto) implementations for  [`Certificate`](crate::api::Certificate) and  [`PathValidator`](crate::api::PathValidator) 
+* [RustCrypto-based](https://github.com/RustCrypto) implementations for  [`Certificate`](crate::api::Certificate) and  [`PathValidator`](crate::api::PathValidator)
 * Parallel downloading of AIA URLs

@@ -146,10 +146,19 @@ where
         match edge.disposition() {
             // edge is leaf certificate, search for issuer candidates
             EdgeDisposition::Certificate(edge_certificate, _) => {
-                let store_candidates = self.next_store(edges, &edge, edge_certificate)?;
+                let mut store_candidates = self.next_store(edges, &edge, edge_certificate)?;
 
                 // return issuer candidates from store or try aia
                 if !store_candidates.is_empty() {
+                    // append any aia edges
+                    let aia_urls = edge_certificate.aia();
+                    let mut aia_edges = aia_urls
+                        .into_iter()
+                        .map(|u| {
+                            edges.edge_from_url(Some(edge.clone()), u, edge_certificate.clone())
+                        })
+                        .collect::<Vec<Edge<C>>>();
+                    store_candidates.append(&mut aia_edges);
                     Ok(store_candidates)
                 } else {
                     Ok(self.next_aia(edges, &edge, edge_certificate))
