@@ -4,7 +4,7 @@ X509 Path Finder is a [depth-first search](https://en.wikipedia.org/wiki/Depth-f
 
 ![CI Status](https://github.com/merlincinematic/x509-path-finder/actions/workflows/ci.yaml/badge.svg)
 
-![Depth-first search](https://github.com/merlincinematic/x509-path-finder/raw/master/doc/find.png#2)
+![Depth-first search](https://github.com/merlincinematic/x509-path-finder/raw/master/doc/find.png)
 
 ## Synopsis
 
