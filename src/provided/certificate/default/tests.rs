@@ -1,14 +1,14 @@
 use crate::api::Certificate;
-use crate::provided::certificate::openssl::certificate::OpenSSLCertificate;
-use crate::provided::certificate::openssl::iter::OpenSSLCertificateIterator;
+use crate::provided::certificate::default::{DefaultCertificate, DefaultCertificateIterator};
 use crate::tests::material::load_material;
 use url::Url;
 use x509_client::api::X509Iterator;
+use x509_client::provided::default::DefaultX509Iterator;
 
 #[tokio::test]
 async fn test_cer_iter() {
     let certificate_data = load_material("resource.resources.ciph.xxx.cer").await;
-    let iter = OpenSSLCertificateIterator::from_cer(&certificate_data)
+    let iter = DefaultCertificateIterator::from_cer(&certificate_data)
         .unwrap()
         .into_iter();
     assert_eq!(1, iter.len());
@@ -17,13 +17,13 @@ async fn test_cer_iter() {
 #[tokio::test]
 async fn test_pem_iter() {
     let certificate_data = load_material("resource.resources.ciph.xxx.pem").await;
-    let iter = OpenSSLCertificateIterator::from_pem(&certificate_data)
+    let iter = DefaultCertificateIterator::from_pem(&certificate_data)
         .unwrap()
         .into_iter();
     assert_eq!(1, iter.len());
 
     let certificate_data = load_material("resource.resources.ciph.xxx-fullchain.pem").await;
-    let iter = OpenSSLCertificateIterator::from_pem(&certificate_data)
+    let iter = DefaultCertificateIterator::from_pem(&certificate_data)
         .unwrap()
         .into_iter();
     assert_eq!(2, iter.len());
@@ -32,7 +32,7 @@ async fn test_pem_iter() {
 #[tokio::test]
 async fn test_pkcs7_iter() {
     let certificate_data = load_material("resource.resources.ciph.xxx.p7c").await;
-    let iter = OpenSSLCertificateIterator::from_pkcs7(&certificate_data)
+    let iter = DefaultCertificateIterator::from_pkcs7(&certificate_data)
         .unwrap()
         .into_iter();
     assert_eq!(2, iter.len());
@@ -41,7 +41,7 @@ async fn test_pkcs7_iter() {
 #[tokio::test]
 async fn test_certificate_aia() {
     let certificate_data = load_material("resource.resources.ciph.xxx.cer").await;
-    let certificate = OpenSSLCertificateIterator::from_cer(&certificate_data)
+    let certificate = DefaultCertificateIterator::from_cer(&certificate_data)
         .unwrap()
         .into_iter()
         .next()
@@ -58,11 +58,12 @@ async fn test_certificate_aia() {
 #[tokio::test]
 async fn test_certificate_issued() {
     let certificate_data = load_material("resource.resources.ciph.xxx.p7c").await;
-    let certificates = OpenSSLCertificateIterator::from_pkcs7(&certificate_data)
+    let certificates = DefaultX509Iterator::from_pkcs7(certificate_data)
         .unwrap()
         .into_iter()
         .rev()
-        .collect::<Vec<OpenSSLCertificate>>();
+        .map(|c| c.into())
+        .collect::<Vec<DefaultCertificate>>();
 
     assert!(&certificates[1].issued(&certificates[0]).unwrap());
 }
