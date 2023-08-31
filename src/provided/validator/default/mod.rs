@@ -51,7 +51,7 @@ impl<'r> PathValidator<'r> for DefaultPathValidator<'r> {
         }
 
         match rustls::client::verify_server_cert_signed_by_trust_anchor(
-            &ParsedCertificate::try_from(&ee).unwrap(),
+            &ParsedCertificate::try_from(&ee)?,
             &self.store,
             rustls_path.as_slice(),
             SystemTime::now(),

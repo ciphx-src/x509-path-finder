@@ -12,6 +12,7 @@ pub type DefaultCertificateResult<T> = result::Result<T, DefaultCertificateError
 pub enum DefaultCertificateError {
     Error(String),
     DerError(cms::cert::x509::der::Error),
+    RustlsError(rustls::Error),
 }
 
 impl CertificateError for DefaultCertificateError {}
@@ -26,6 +27,9 @@ impl Display for DefaultCertificateError {
             DefaultCertificateError::DerError(e) => {
                 write!(f, "default certificate -> der error: {}", e)
             }
+            DefaultCertificateError::RustlsError(e) => {
+                write!(f, "default certificate -> rustls error: {}", e)
+            }
         }
     }
 }
@@ -35,6 +39,12 @@ impl Error for DefaultCertificateError {}
 impl From<cms::cert::x509::der::Error> for DefaultCertificateError {
     fn from(e: cms::cert::x509::der::Error) -> Self {
         Self::DerError(e)
+    }
+}
+
+impl From<rustls::Error> for DefaultCertificateError {
+    fn from(e: rustls::Error) -> Self {
+        Self::RustlsError(e)
     }
 }
 
