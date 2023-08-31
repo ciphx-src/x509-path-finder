@@ -11,7 +11,7 @@ use x509_client::api::X509Iterator;
 
 #[tokio::test]
 async fn test_verifier() {
-    let certificate_data = load_material("resource.resources.ciph.xxx.p7c").await;
+    let certificate_data = load_material("kim@id.vandelaybank.com.p7c").await;
     let certificates = OpenSSLCertificateIterator::from_pkcs7(&certificate_data)
         .unwrap()
         .into_iter()
@@ -21,7 +21,7 @@ async fn test_verifier() {
     assert_eq!(2, certificates.len());
     assert!(&certificates[1].issued(&certificates[0]).unwrap());
 
-    let root = load_material("ciph.xxx.cer").await;
+    let root = load_material("vandelaybank.com.cer").await;
     let root = X509::from_der(&root).unwrap();
 
     let mut builder = X509StoreBuilder::new().unwrap();

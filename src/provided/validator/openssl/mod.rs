@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 #[cfg(test)]
 pub mod tests;
 
-/// OpenSSL [`PathValidator`](crate::api::PathValidator) implementations
+/// OpenSSL [`PathValidator`](crate::api::PathValidator)
 pub struct OpenSSLPathValidator<'r> {
     store: X509Store,
     lifetime: PhantomData<&'r ()>,
@@ -44,7 +44,7 @@ impl<'r> PathValidator<'r> for OpenSSLPathValidator<'r> {
         }
 
         let mut openssl_path = Stack::new()?;
-        for certificate in &path {
+        for certificate in &path[1..] {
             openssl_path.push(certificate.clone().into())?;
         }
 

@@ -7,7 +7,7 @@ use x509_client::api::X509Iterator;
 
 #[tokio::test]
 async fn test_cer_iter() {
-    let certificate_data = load_material("resource.resources.ciph.xxx.cer").await;
+    let certificate_data = load_material("kim@id.vandelaybank.com.cer").await;
     let iter = OpenSSLCertificateIterator::from_cer(&certificate_data)
         .unwrap()
         .into_iter();
@@ -16,13 +16,13 @@ async fn test_cer_iter() {
 
 #[tokio::test]
 async fn test_pem_iter() {
-    let certificate_data = load_material("resource.resources.ciph.xxx.pem").await;
+    let certificate_data = load_material("kim@id.vandelaybank.com.pem").await;
     let iter = OpenSSLCertificateIterator::from_pem(&certificate_data)
         .unwrap()
         .into_iter();
     assert_eq!(1, iter.len());
 
-    let certificate_data = load_material("resource.resources.ciph.xxx-fullchain.pem").await;
+    let certificate_data = load_material("kim@id.vandelaybank.com-fullchain.pem").await;
     let iter = OpenSSLCertificateIterator::from_pem(&certificate_data)
         .unwrap()
         .into_iter();
@@ -31,7 +31,7 @@ async fn test_pem_iter() {
 
 #[tokio::test]
 async fn test_pkcs7_iter() {
-    let certificate_data = load_material("resource.resources.ciph.xxx.p7c").await;
+    let certificate_data = load_material("kim@id.vandelaybank.com.p7c").await;
     let iter = OpenSSLCertificateIterator::from_pkcs7(&certificate_data)
         .unwrap()
         .into_iter();
@@ -40,7 +40,7 @@ async fn test_pkcs7_iter() {
 
 #[tokio::test]
 async fn test_certificate_aia() {
-    let certificate_data = load_material("resource.resources.ciph.xxx.cer").await;
+    let certificate_data = load_material("kim@id.vandelaybank.com.cer").await;
     let certificate = OpenSSLCertificateIterator::from_cer(&certificate_data)
         .unwrap()
         .into_iter()
@@ -48,16 +48,17 @@ async fn test_certificate_aia() {
         .unwrap();
 
     assert_eq!(
-        &vec![
-            Url::parse("https://pki-local.ciph.xxx/certificates/resources.ciph.xxx.cer").unwrap(),
-        ],
+        &vec![Url::parse(
+            "https://identity.vandelaybank.com:4443/certificates/id.vandelaybank.com.cer"
+        )
+        .unwrap(),],
         &certificate.aia()
     );
 }
 
 #[tokio::test]
 async fn test_certificate_issued() {
-    let certificate_data = load_material("resource.resources.ciph.xxx.p7c").await;
+    let certificate_data = load_material("kim@id.vandelaybank.com.p7c").await;
     let certificates = OpenSSLCertificateIterator::from_pkcs7(&certificate_data)
         .unwrap()
         .into_iter()
