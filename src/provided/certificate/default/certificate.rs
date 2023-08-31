@@ -1,12 +1,12 @@
 use crate::api::Certificate;
 use crate::provided::default_common::result::DefaultCertificateError;
-use cms::cert::x509::der::oid::db::rfc5280::{ID_AD_CA_ISSUERS, ID_PE_AUTHORITY_INFO_ACCESS};
-use cms::cert::x509::der::{Decode, Encode};
-use cms::cert::x509::ext::pkix::name::GeneralName;
-use cms::cert::x509::ext::pkix::AuthorityInfoAccessSyntax;
-use cms::cert::x509::Certificate as X509Certificate;
 use std::sync::Arc;
 use url::Url;
+use x509_cert::der::oid::db::rfc5280::{ID_AD_CA_ISSUERS, ID_PE_AUTHORITY_INFO_ACCESS};
+use x509_cert::der::{Decode, Encode};
+use x509_cert::ext::pkix::name::GeneralName;
+use x509_cert::ext::pkix::AuthorityInfoAccessSyntax;
+use x509_cert::Certificate as X509Certificate;
 
 /// Default [`Certificate`](crate::api::Certificate) implementation
 #[derive(Clone)]

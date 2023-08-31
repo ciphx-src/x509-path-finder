@@ -1,12 +1,12 @@
 use crate::provided::certificate::default::DefaultCertificate;
 use crate::provided::default_common::result::DefaultCertificateError;
-use cms::cert::x509::der::asn1::SetOfVec;
-use cms::cert::x509::der::{Decode, Encode};
-use cms::cert::x509::Certificate as X509Certificate;
 use cms::cert::CertificateChoices;
 use cms::content_info::ContentInfo;
 use cms::signed_data::SignedData;
 use std::vec;
+use x509_cert::der::asn1::SetOfVec;
+use x509_cert::der::{Decode, Encode};
+use x509_cert::Certificate as X509Certificate;
 use x509_client::api::X509Iterator;
 
 /// Default [`X509Iterator`](x509_client::api::X509Iterator) implementation
