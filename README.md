@@ -4,7 +4,7 @@ X509 Path Finder is a [depth-first search](https://en.wikipedia.org/wiki/Depth-f
 
 ![CI Status](https://github.com/merlincinematic/x509-path-finder/actions/workflows/ci.yaml/badge.svg)
 
-![Depth-first search](https://github.com/merlincinematic/x509-path-finder/raw/master/doc/find.png#2)
+![Depth-first search](https://github.com/merlincinematic/x509-path-finder/raw/master/doc/find.png)
 
 ## Synopsis
 
@@ -18,18 +18,21 @@ The complexity of the path search is constrained by three factors:
 
 When evaluating a path candidate for validation, X509 Path Finder is implementation-agnostic. Once it finds a path that has terminated, it presents it to be validated by a backend authority. If the authority validates the path, the search halts.
 
-Validators can be implemented with one method. To get users started, X509 Path Finder ships with an OpenSSL [validator](crate::provided::validator::openssl::OpenSSLPathValidator).
+X509 Path Finder provides two validators:
+
+1. [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator) - implemented with [RustCrypto](https://github.com/RustCrypto) and [Rustls](https://github.com/rustls/rustls), available by default.
+2. [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) - implemented with [Rust OpenSSL](https://docs.rs/openssl/latest/openssl/), available with the `openssl` feature flag
 
 ## Usage
 
-By default, you'll need to implement your own [PathValidator](crate::api::PathValidator).
+By default, the provided [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator) validator and the [DefaultCertificate](crate::provided::certificate::default::DefaultCertificate) X509 model are available.
 
 ````text
 [dependencies]
 x509_path_finder = { version = "0.3"] }
 ````
 
-Or, enable the `openssl` feature for access to the provided [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) validator.
+Enable the `openssl` feature for access to the provided [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) validator and the [OpenSSLPathValidator](crate::provided::certificate::openssl::OpenSSLCertificate) X509 model.
 
 ````text
 [dependencies]
@@ -42,28 +45,32 @@ x509_path_finder = { version = "0.3", features = ["openssl"] }
 ```` rust no_run
 
 use x509_path_finder::api::CertificateStore;
-use x509_path_finder::provided::certificate::openssl::OpenSSLCertificateIterator;
+use x509_path_finder::provided::certificate::default::DefaultCertificateIterator;
 use x509_path_finder::provided::store::DefaultCertificateStore;
-use x509_path_finder::provided::validator::openssl::OpenSSLPathValidator;
+use x509_path_finder::provided::validator::default::DefaultPathValidator;
 use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration, X509PathFinderResult, AIA, NoAIA};
-use openssl::x509::store::{X509Store, X509StoreBuilder};
-use openssl::x509::verify::X509VerifyFlags;
-use openssl::x509::X509;
-use std::marker::PhantomData;
 use std::time::Duration;
+use rustls::{Certificate as RustlsCertificate, RootCertStore};
+use x509_cert::Certificate;
+use x509_cert::der::{Decode};
 
 async fn test() -> X509PathFinderResult<()> {
     // load certificates
-    let (root, certificates) = load_certificates().unwrap();
+    let intermediate = Certificate::from_der(&[]).unwrap();
+    let end_entity = Certificate::from_der(&[]).unwrap();
 
-    // create store, load in certificates
-    let store = DefaultCertificateStore::from_iter(&certificates);
+    // create store, load in intermediates
+    let store = DefaultCertificateStore::from_iter(vec![intermediate]);
 
-    // build openssl store for validator
-    let openssl_store = build_openssl_store(root).unwrap();
+    // build Rustls trusted root store for validator
+    let mut rustls_store = RootCertStore::empty();
+    // Load root certificate
+    let root = RustlsCertificate(vec![]);
+    // Populate Rustls store
+    rustls_store.add(&root).unwrap();
 
-    // Instantiate validator with OpenSSL store
-    let validator = OpenSSLPathValidator::new(openssl_store);
+    // Instantiate validator with Rustls store
+    let validator = DefaultPathValidator::new(rustls_store);
 
     // Instantiate finder with store and validator
     let mut finder = X509PathFinder::new(X509PathFinderConfiguration {
@@ -73,33 +80,14 @@ async fn test() -> X509PathFinderResult<()> {
         validator,
     });
 
-    // Find a path, starting with first certificate
-    let report = finder.find(certificates[0].as_ref()).await?;
-    let path = report.path.unwrap().into_iter().collect::<Vec<X509>>();
+    // Find a path
+    let report = finder.find(end_entity).await?;
+    let path = report.path.unwrap().into_iter().collect::<Vec<Certificate>>();
     assert_eq!(2, path.len());
-
-    // Find a path, starting with second certificate
-    let report = finder.find(certificates[1].as_ref()).await?;
-    let path = report.path.unwrap().into_iter().collect::<Vec<X509>>();
-    assert_eq!(1, path.len());
 
     Ok(())
 }
 
-// load certificates with OpenSSL
-fn load_certificates() -> Result<(X509, Vec<X509>), openssl::error::ErrorStack> {
-    let root = X509::from_pem(&[])?;
-    let certificates = X509::stack_from_pem(&[])?;
-    Ok((root, certificates))
-}
-
-// create OpenSSL store
-fn build_openssl_store(root: X509) -> Result<X509Store, openssl::error::ErrorStack> {
-    let mut builder = X509StoreBuilder::new()?;
-    builder.add_cert(root)?;
-    builder.set_flags(X509VerifyFlags::X509_STRICT)?;
-    Ok(builder.build())
-}
 
 ````
 
@@ -140,7 +128,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 
 * `path`: on validate success, `Option::Some` holds [`CertificatePath`](crate::report::CertificatePath) iterator.
 * `origin`: on validate success, `Option::Some` holds a list of [`CertificateOrigin`](crate::report::CertificateOrigin) values
-* `duration`: duration of path search 
+* `duration`: duration of path search
 * `failures`: any validation failures reported by [`PathValidator`](crate::api::PathValidator) implementation are held in [`ValidateFailure`](crate::report::ValidateFailure)
 
 #### CertificatePath
@@ -165,7 +153,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 X509 Path Finder can be extended with three traits:
 
 * [`Certificate`](crate::api::Certificate) - model-agnostic representation of an X509 certificate. Implement this trait to add more certificates models
-* [`CertificateStore`](crate::api::CertificateStore) - certificate store API. Implement this trait to make stores with different persistence strategies 
+* [`CertificateStore`](crate::api::CertificateStore) - certificate store API. Implement this trait to make stores with different persistence strategies
 * [`PathValidator`](crate::api::PathValidator) - path validator API. Implement this trait to use different backend authorities to validate certificate paths.
 
 ### Implementations
@@ -174,7 +162,8 @@ The following API implementations are provided with the X509 Path Finder crate:
 
 #### Certificate
 
-* [OpenSSLCertificate](crate::provided::certificate::openssl::OpenSSLCertificate) - OpenSSL X509 certificate representation
+* [DefaultCertificate](crate::provided::certificate::default::DefaultCertificate) -  [RustCrypto](https://github.com/RustCrypto) X509 certificate model
+* [OpenSSLCertificate](crate::provided::certificate::openssl::OpenSSLCertificate) - [OpenSSL](https://docs.rs/openssl/latest/openssl/) X509 certificate model
 
 #### CertificateStore
 
@@ -183,9 +172,10 @@ The following API implementations are provided with the X509 Path Finder crate:
 
 #### PathValidator
 
-* [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator)- validates path with OpenSSL
+* [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator)- validates path with [Rustls](https://github.com/rustls/rustls)
+* [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator)- validates path with [OpenSSL](https://docs.rs/openssl/latest/openssl/)
 
 ## TODO
 
-* [RustCrypto-based](https://github.com/RustCrypto) implementations for  [`Certificate`](crate::api::Certificate) and  [`PathValidator`](crate::api::PathValidator) 
+* [RustCrypto-based](https://github.com/RustCrypto) implementations for  [`Certificate`](crate::api::Certificate) and  [`PathValidator`](crate::api::PathValidator)
 * Parallel downloading of AIA URLs

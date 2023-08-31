@@ -11,10 +11,10 @@ use std::time::Duration;
 
 #[tokio::test]
 async fn test_find() {
-    let certificate_data = load_material("resource.resources.ciph.xxx-fullchain.pem").await;
+    let certificate_data = load_material("kim@id.vandelaybank.com-fullchain.pem").await;
     let certificates = X509::stack_from_pem(&certificate_data).unwrap();
 
-    let root = load_material("ciph.xxx.cer").await;
+    let root = load_material("vandelaybank.com.cer").await;
     let root = X509::from_der(&root).unwrap();
 
     let mut builder = X509StoreBuilder::new().unwrap();
