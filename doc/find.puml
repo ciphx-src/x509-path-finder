@@ -1,5 +1,7 @@
 @startuml
 
+skinparam dpi 150
+
 start
 
 : add start edge to queue;
