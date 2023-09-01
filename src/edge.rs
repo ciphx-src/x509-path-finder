@@ -32,7 +32,7 @@ impl<'r> Edges<'r> {
         }
     }
 
-    pub fn next(&mut self) -> Option<Edge> {
+    pub fn next(&mut self) -> Option<Edge<'r>> {
         self.edges.pop()
     }
 
@@ -58,7 +58,7 @@ impl<'r> Edges<'r> {
         parent: Option<Edge<'r>>,
         url: Url,
         holder: &'r Certificate,
-    ) -> Edge {
+    ) -> Edge<'r> {
         self.serial += 1;
         Edge::new(
             self.serial,
@@ -67,16 +67,16 @@ impl<'r> Edges<'r> {
         )
     }
 
-    pub fn edge_from_end(&mut self, parent: Option<Edge<'r>>) -> Edge {
+    pub fn edge_from_end(&mut self, parent: Option<Edge<'r>>) -> Edge<'r> {
         self.serial += 1;
         Edge::new(self.serial, parent, EdgeDisposition::End)
     }
 
-    pub fn visit(&mut self, edge: &Edge) {
+    pub fn visit(&mut self, edge: &Edge<'r>) {
         self.visited.insert(edge.serial);
     }
 
-    pub fn visited(&self, edge: &Edge) -> bool {
+    pub fn visited(&self, edge: &Edge<'r>) -> bool {
         self.visited.contains(&edge.serial)
     }
 }
@@ -105,7 +105,7 @@ impl<'r> Edge<'r> {
         matches!(self.disposition, EdgeDisposition::End)
     }
 
-    pub fn disposition(&self) -> &EdgeDisposition {
+    pub fn disposition(&self) -> &EdgeDisposition<'r> {
         &self.disposition
     }
 }
