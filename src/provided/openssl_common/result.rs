@@ -2,9 +2,7 @@ use openssl::error::ErrorStack;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::result;
-use x509_client::api::X509IteratorError;
 use x509_client::provided::openssl::OpenSSLX509IteratorError;
-use x509_client::X509ClientError;
 
 pub type OpenSSLResult<T> = result::Result<T, OpenSSLError>;
 
@@ -15,8 +13,6 @@ pub enum OpenSSLError {
     OpenSSLX509IteratorError(OpenSSLX509IteratorError),
     DerError(der::Error),
 }
-
-impl X509IteratorError for OpenSSLError {}
 
 impl Display for OpenSSLError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -54,11 +50,5 @@ impl From<OpenSSLX509IteratorError> for OpenSSLError {
 impl From<der::Error> for OpenSSLError {
     fn from(e: der::Error) -> Self {
         Self::DerError(e)
-    }
-}
-
-impl From<OpenSSLError> for X509ClientError {
-    fn from(e: OpenSSLError) -> Self {
-        Self::X509IteratorError(Box::new(e))
     }
 }

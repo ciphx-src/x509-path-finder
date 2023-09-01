@@ -1,8 +1,6 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::result;
-use x509_client::api::X509IteratorError;
-use x509_client::X509ClientError;
 
 pub type DefaultResult<T> = result::Result<T, DefaultError>;
 
@@ -12,8 +10,6 @@ pub enum DefaultError {
     DerError(der::Error),
     RustlsError(rustls::Error),
 }
-
-impl X509IteratorError for DefaultError {}
 
 impl Display for DefaultError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -42,11 +38,5 @@ impl From<der::Error> for DefaultError {
 impl From<rustls::Error> for DefaultError {
     fn from(e: rustls::Error) -> Self {
         Self::RustlsError(e)
-    }
-}
-
-impl From<DefaultError> for X509ClientError {
-    fn from(e: DefaultError) -> Self {
-        Self::X509IteratorError(Box::new(e))
     }
 }
