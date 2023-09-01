@@ -1,5 +1,4 @@
 use crate::api::PathValidatorError;
-use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::result;
@@ -47,5 +46,3 @@ impl From<Box<dyn PathValidatorError>> for X509PathFinderError {
         Self::PathValidatorError(e)
     }
 }
-
-impl PathValidatorError for Infallible {}

@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::iter::once;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use std::vec;
 
@@ -24,7 +24,7 @@ where
     /// Optional client to find additional certificates by parsing URLs from [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extensions
     pub aia: Option<X509Client<DefaultX509Iterator>>,
     /// [`CertificateStore`](crate::api::CertificateStore) implementation
-    pub store: S,
+    pub store: Arc<RwLock<S>>,
     /// [`PathValidator`](crate::api::PathValidator) implementation
     pub validator: V,
 }
@@ -43,7 +43,6 @@ where
     S: CertificateStore,
     V: PathValidator,
     X509PathFinderError: From<<V as PathValidator>::PathValidatorError>,
-    X509PathFinderError: From<<S as CertificateStore>::CertificateStoreError>,
 {
     /// Instantiate new X509PathFinder with configuration
     pub fn new(config: X509PathFinderConfiguration<S, V>) -> Self {
@@ -164,7 +163,13 @@ where
         parent_certificate: &Certificate,
     ) -> X509PathFinderResult<Vec<Edge>> {
         let mut candidates = vec![];
-        for candidate in self.config.store.issuers(parent_certificate) {
+        for candidate in self
+            .config
+            .store
+            .read()
+            .unwrap()
+            .issuers(parent_certificate)
+        {
             // filter out self-signed
             if !candidate.issued(candidate) {
                 candidates.push(edges.edge_from_certificate(
@@ -187,7 +192,11 @@ where
     ) -> X509PathFinderResult<Vec<Edge>> {
         let mut candidates = vec![];
         for candidate in self.get_all(url.as_ref()).await.unwrap_or_else(|_| vec![]) {
-            self.config.store.extend(once(candidate.clone()));
+            self.config
+                .store
+                .write()
+                .unwrap()
+                .extend(once(candidate.clone()));
 
             // filtering out self-signed
             if candidate.issued(&candidate) {

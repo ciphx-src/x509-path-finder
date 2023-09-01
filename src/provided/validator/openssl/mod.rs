@@ -64,6 +64,7 @@ impl PathValidator for OpenSSLPathValidator {
         }
     }
 }
+
 impl PathValidatorError for OpenSSLError {}
 
 enum VerifyResult {

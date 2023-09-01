@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use crate::api::{Certificate, CertificateStore, CertificateStoreError};
-use crate::provided::default_common::result::DefaultError;
+use crate::api::{Certificate, CertificateStore};
 use std::collections::{btree_set, BTreeSet};
 
 /// Default [`CertificateStore`](crate::api::CertificateStore) implementation.
@@ -61,8 +60,6 @@ impl Extend<Certificate> for DefaultCertificateStore {
 }
 
 impl CertificateStore for DefaultCertificateStore {
-    type CertificateStoreError = DefaultError;
-
     fn issuers(&self, subject: &Certificate) -> Vec<&Certificate> {
         self.certificates
             .iter()
@@ -70,5 +67,3 @@ impl CertificateStore for DefaultCertificateStore {
             .collect()
     }
 }
-
-impl CertificateStoreError for DefaultError {}
