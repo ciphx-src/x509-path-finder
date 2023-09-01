@@ -9,7 +9,7 @@ use url::Url;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Report<'r> {
     /// On validate success, `Option::Some` holds certificate path
-    pub path: Option<Vec<Certificate>>,
+    pub path: Option<Vec<&'r Certificate>>,
     /// On validate success, `Option::Some` holds certificate path origins
     pub origin: Option<Vec<CertificateOrigin>>,
     /// Duration of path search
