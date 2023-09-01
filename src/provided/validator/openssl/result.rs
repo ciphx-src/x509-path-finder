@@ -3,7 +3,6 @@ use openssl::error::ErrorStack;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::result;
-use x509_client::provided::openssl::OpenSSLX509IteratorError;
 
 pub type OpenSSLPathValidatorResult<T> = result::Result<T, OpenSSLPathValidatorError>;
 
@@ -11,7 +10,6 @@ pub type OpenSSLPathValidatorResult<T> = result::Result<T, OpenSSLPathValidatorE
 pub enum OpenSSLPathValidatorError {
     Error(String),
     OpenSslErrorStack(ErrorStack),
-    OpenSSLX509IteratorError(OpenSSLX509IteratorError),
     DerError(der::Error),
 }
 
@@ -27,9 +25,6 @@ impl Display for OpenSSLPathValidatorError {
             OpenSSLPathValidatorError::DerError(e) => {
                 write!(f, "openssl path validator -> der error: {}", e)
             }
-            OpenSSLPathValidatorError::OpenSSLX509IteratorError(e) => {
-                write!(f, "openssl path validator -> {}", e)
-            }
         }
     }
 }
@@ -39,12 +34,6 @@ impl Error for OpenSSLPathValidatorError {}
 impl From<ErrorStack> for OpenSSLPathValidatorError {
     fn from(e: ErrorStack) -> Self {
         Self::OpenSslErrorStack(e)
-    }
-}
-
-impl From<OpenSSLX509IteratorError> for OpenSSLPathValidatorError {
-    fn from(e: OpenSSLX509IteratorError) -> Self {
-        Self::OpenSSLX509IteratorError(e)
     }
 }
 
