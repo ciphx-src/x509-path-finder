@@ -2,7 +2,8 @@
 
 // mod aia;
 pub mod api;
-// mod edge;
+#[allow(dead_code)]
+mod edge;
 // mod find;
 pub mod provided;
 pub mod report;
@@ -13,4 +14,3 @@ pub mod tests;
 // pub use aia::*;
 // pub use find::*;
 pub use result::*;
-// pub use x509_client;

@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::api::Certificate;
@@ -7,21 +6,21 @@ use crate::report::CertificateOrigin;
 use url::Url;
 
 #[derive(Clone)]
-pub enum EdgeDisposition<'r, C: Certificate<'r>> {
-    Certificate(C, CertificateOrigin),
-    Url(Arc<Url>, C),
-    End(PhantomData<&'r C>),
+pub enum EdgeDisposition {
+    Certificate(Certificate, CertificateOrigin),
+    Url(Arc<Url>, Certificate),
+    End,
 }
 
 #[derive(Clone)]
-pub struct Edges<'r, C: Certificate<'r>> {
+pub struct Edges {
     serial: usize,
     visited: HashSet<usize>,
-    edges: Vec<Edge<'r, C>>,
+    edges: Vec<Edge>,
 }
 
-impl<'r, C: Certificate<'r>> Edges<'r, C> {
-    pub fn new(certificate: C) -> Self {
+impl Edges {
+    pub fn new(certificate: Certificate) -> Self {
         Self {
             serial: 0,
             visited: HashSet::new(),
@@ -33,20 +32,20 @@ impl<'r, C: Certificate<'r>> Edges<'r, C> {
         }
     }
 
-    pub fn next(&mut self) -> Option<Edge<'r, C>> {
+    pub fn next(&mut self) -> Option<Edge> {
         self.edges.pop()
     }
 
-    pub fn extend<I: IntoIterator<Item = Edge<'r, C>>>(&mut self, edges: I) {
+    pub fn extend<I: IntoIterator<Item = Edge>>(&mut self, edges: I) {
         self.edges.extend(edges)
     }
 
     pub fn edge_from_certificate(
         &mut self,
-        parent: Option<Edge<'r, C>>,
-        certificate: C,
+        parent: Option<Edge>,
+        certificate: Certificate,
         origin: CertificateOrigin,
-    ) -> Edge<'r, C> {
+    ) -> Edge {
         self.serial += 1;
         Edge::new(
             self.serial,
@@ -54,12 +53,7 @@ impl<'r, C: Certificate<'r>> Edges<'r, C> {
             EdgeDisposition::Certificate(certificate, origin),
         )
     }
-    pub fn edge_from_url(
-        &mut self,
-        parent: Option<Edge<'r, C>>,
-        url: Url,
-        holder: C,
-    ) -> Edge<'r, C> {
+    pub fn edge_from_url(&mut self, parent: Option<Edge>, url: Url, holder: Certificate) -> Edge {
         self.serial += 1;
         Edge::new(
             self.serial,
@@ -68,33 +62,29 @@ impl<'r, C: Certificate<'r>> Edges<'r, C> {
         )
     }
 
-    pub fn edge_from_end(&mut self, parent: Option<Edge<'r, C>>) -> Edge<'r, C> {
+    pub fn edge_from_end(&mut self, parent: Option<Edge>) -> Edge {
         self.serial += 1;
-        Edge::new(self.serial, parent, EdgeDisposition::End(PhantomData))
+        Edge::new(self.serial, parent, EdgeDisposition::End)
     }
 
-    pub fn visit(&mut self, edge: &Edge<'r, C>) {
+    pub fn visit(&mut self, edge: &Edge) {
         self.visited.insert(edge.serial);
     }
 
-    pub fn visited(&self, edge: &Edge<'r, C>) -> bool {
+    pub fn visited(&self, edge: &Edge) -> bool {
         self.visited.contains(&edge.serial)
     }
 }
 
 #[derive(Clone)]
-pub struct Edge<'r, C: Certificate<'r>> {
-    parent: Box<Option<Edge<'r, C>>>,
-    disposition: EdgeDisposition<'r, C>,
+pub struct Edge {
+    parent: Box<Option<Edge>>,
+    disposition: EdgeDisposition,
     serial: usize,
 }
 
-impl<'r, C: Certificate<'r>> Edge<'r, C> {
-    fn new(
-        serial: usize,
-        parent: Option<Edge<'r, C>>,
-        disposition: EdgeDisposition<'r, C>,
-    ) -> Self {
+impl Edge {
+    fn new(serial: usize, parent: Option<Edge>, disposition: EdgeDisposition) -> Self {
         Self {
             parent: parent.into(),
             disposition,
@@ -102,15 +92,15 @@ impl<'r, C: Certificate<'r>> Edge<'r, C> {
         }
     }
 
-    pub fn parent(&self) -> Option<Edge<'r, C>> {
+    pub fn parent(&self) -> Option<Edge> {
         self.parent.as_ref().clone()
     }
 
     pub fn end(&self) -> bool {
-        matches!(self.disposition, EdgeDisposition::End(_))
+        matches!(self.disposition, EdgeDisposition::End)
     }
 
-    pub fn disposition(&self) -> &EdgeDisposition<'r, C> {
+    pub fn disposition(&self) -> &EdgeDisposition {
         &self.disposition
     }
 }
