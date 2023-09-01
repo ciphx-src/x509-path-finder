@@ -1,30 +1,28 @@
 use std::collections::VecDeque;
+use std::iter::once;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::vec;
 
 use url::Url;
-use x509_client::api::X509Iterator;
-use x509_client::{X509ClientError, X509ClientResult};
+use x509_client::provided::default::DefaultX509Iterator;
+use x509_client::{X509Client, X509ClientResult};
 
 use crate::api::{Certificate, CertificatePathValidation, CertificateStore, PathValidator};
 use crate::edge::{Edge, EdgeDisposition, Edges};
 use crate::report::{CertificateOrigin, Report};
-use crate::{X509PathFinderError, X509PathFinderResult, AIA};
+use crate::{X509PathFinderError, X509PathFinderResult};
 
 /// [`X509PathFinder`](crate::X509PathFinder) configuration
-#[derive(Clone)]
-pub struct X509PathFinderConfiguration<'r, X, S, C, V>
+pub struct X509PathFinderConfiguration<S, V>
 where
-    X: X509Iterator<Item = C>,
-    S: CertificateStore<'r, Certificate = C>,
-    C: Certificate<'r>,
-    V: PathValidator<'r, Certificate = C>,
+    S: CertificateStore,
+    V: PathValidator,
 {
     /// limit runtime of path search. Actual limit will be N * HTTP timeout. See `Reqwest` docs for setting HTTP connection timeout.
     pub limit: Duration,
     /// Optional client to find additional certificates by parsing URLs from [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extensions
-    pub aia: AIA<'r, X, C>,
+    pub aia: Option<X509Client<DefaultX509Iterator>>,
     /// [`CertificateStore`](crate::api::CertificateStore) implementation
     pub store: S,
     /// [`PathValidator`](crate::api::PathValidator) implementation
@@ -32,39 +30,29 @@ where
 }
 
 /// X509 Path Finder
-#[derive(Clone)]
-pub struct X509PathFinder<'r, X, S, C, V>
+pub struct X509PathFinder<S, V>
 where
-    X: X509Iterator<Item = C>,
-    S: CertificateStore<'r, Certificate = C>,
-    C: Certificate<'r>,
-    V: PathValidator<'r, Certificate = C>,
+    S: CertificateStore,
+    V: PathValidator,
 {
-    config: X509PathFinderConfiguration<'r, X, S, C, V>,
+    config: X509PathFinderConfiguration<S, V>,
 }
 
-impl<'r, X, S, C, V> X509PathFinder<'r, X, S, C, V>
+impl<S, V> X509PathFinder<S, V>
 where
-    X: X509Iterator<Item = C>,
-    S: CertificateStore<'r, Certificate = C>,
-    C: Certificate<'r>,
-    V: PathValidator<'r, Certificate = C>,
-    X509ClientError: From<X::X509IteratorError>,
-    X509PathFinderError: From<<V as PathValidator<'r>>::PathValidatorError>,
-    X509PathFinderError: From<<C as Certificate<'r>>::CertificateError>,
-    X509PathFinderError: From<<S as CertificateStore<'r>>::CertificateStoreError>,
+    S: CertificateStore,
+    V: PathValidator,
+    X509PathFinderError: From<<V as PathValidator>::PathValidatorError>,
+    X509PathFinderError: From<<S as CertificateStore>::CertificateStoreError>,
 {
     /// Instantiate new X509PathFinder with configuration
-    pub fn new(config: X509PathFinderConfiguration<'r, X, S, C, V>) -> Self {
+    pub fn new(config: X509PathFinderConfiguration<S, V>) -> Self {
         X509PathFinder { config }
     }
 
     /// Find certificate path, returning [`Report`](crate::report::Report)
-    pub async fn find<IT: Into<C>>(
-        &mut self,
-        certificate: IT,
-    ) -> X509PathFinderResult<Report<'r, C>> {
-        let mut edges = Edges::new(certificate.into());
+    pub async fn find(&mut self, certificate: Certificate) -> X509PathFinderResult<Report> {
+        let mut edges = Edges::new(certificate);
 
         let start = Instant::now();
 
@@ -111,9 +99,8 @@ where
 
     async fn validate(
         &self,
-        edge: &Edge<'r, C>,
-    ) -> X509PathFinderResult<Option<(CertificatePathValidation<'r, C>, Vec<CertificateOrigin>)>>
-    {
+        edge: &Edge,
+    ) -> X509PathFinderResult<Option<(CertificatePathValidation, Vec<CertificateOrigin>)>> {
         if !edge.end() {
             return Ok(None);
         }
@@ -138,11 +125,7 @@ where
         )))
     }
 
-    async fn next(
-        &mut self,
-        edges: &mut Edges<'r, C>,
-        edge: Edge<'r, C>,
-    ) -> X509PathFinderResult<Vec<Edge<'r, C>>> {
+    async fn next(&mut self, edges: &mut Edges, edge: Edge) -> X509PathFinderResult<Vec<Edge>> {
         match edge.disposition() {
             // edge is leaf certificate, search for issuer candidates
             EdgeDisposition::Certificate(edge_certificate, _) => {
@@ -157,7 +140,7 @@ where
                         .map(|u| {
                             edges.edge_from_url(Some(edge.clone()), u, edge_certificate.clone())
                         })
-                        .collect::<Vec<Edge<C>>>();
+                        .collect::<Vec<Edge>>();
                     store_candidates.append(&mut aia_edges);
                     Ok(store_candidates)
                 } else {
@@ -169,24 +152,24 @@ where
                 .next_url(edges, &edge, edge_certificate, url.clone())
                 .await?),
             // edge is end, stop search
-            EdgeDisposition::End(_) => Ok(vec![]),
+            EdgeDisposition::End => Ok(vec![]),
         }
     }
 
     // return non self-signed issuer candidates from store
     fn next_store(
         &mut self,
-        edges: &mut Edges<'r, C>,
-        parent_edge: &Edge<'r, C>,
-        parent_certificate: &C,
-    ) -> X509PathFinderResult<Vec<Edge<'r, C>>> {
+        edges: &mut Edges,
+        parent_edge: &Edge,
+        parent_certificate: &Certificate,
+    ) -> X509PathFinderResult<Vec<Edge>> {
         let mut candidates = vec![];
-        for candidate in self.config.store.issuers(parent_certificate)? {
+        for candidate in self.config.store.issuers(parent_certificate) {
             // filter out self-signed
-            if !candidate.issued(&candidate)? {
+            if !candidate.issued(candidate) {
                 candidates.push(edges.edge_from_certificate(
                     Some(parent_edge.clone()),
-                    candidate,
+                    candidate.clone(),
                     CertificateOrigin::Store,
                 ));
             }
@@ -197,26 +180,22 @@ where
     // download certificates, insert into store, return non self-signed issuer candidates
     async fn next_url(
         &mut self,
-        edges: &mut Edges<'r, C>,
-        parent_edge: &Edge<'r, C>,
-        parent_certificate: &C,
+        edges: &mut Edges,
+        parent_edge: &Edge,
+        parent_certificate: &Certificate,
         url: Arc<Url>,
-    ) -> X509PathFinderResult<Vec<Edge<'r, C>>> {
+    ) -> X509PathFinderResult<Vec<Edge>> {
         let mut candidates = vec![];
-        for candidate in self
-            .get_all(url.as_ref())
-            .await
-            .unwrap_or_else(|_| X::from_iter(vec![]))
-        {
-            self.config.store.insert(candidate.clone())?;
+        for candidate in self.get_all(url.as_ref()).await.unwrap_or_else(|_| vec![]) {
+            self.config.store.extend(once(candidate.clone()));
 
             // filtering out self-signed
-            if candidate.issued(&candidate)? {
+            if candidate.issued(&candidate) {
                 continue;
             }
 
             // url is issuer, return as certificate edge
-            if candidate.issued(parent_certificate)? {
+            if candidate.issued(parent_certificate) {
                 candidates.push(edges.edge_from_certificate(
                     parent_edge.parent().clone(),
                     candidate,
@@ -235,12 +214,12 @@ where
     // if aia enabled, return aia edges
     fn next_aia(
         &mut self,
-        edges: &mut Edges<'r, C>,
-        parent_edge: &Edge<'r, C>,
-        parent_certificate: &C,
-    ) -> Vec<Edge<'r, C>> {
+        edges: &mut Edges,
+        parent_edge: &Edge,
+        parent_certificate: &Certificate,
+    ) -> Vec<Edge> {
         // aia disabled, return end edge
-        if let AIA::None(_) = &self.config.aia {
+        if self.config.aia.is_none() {
             return vec![edges.edge_from_end(Some(parent_edge.clone()))];
         }
 
@@ -258,21 +237,26 @@ where
     }
 
     /// Consume finder, return configuration
-    pub fn into_config(self) -> X509PathFinderConfiguration<'r, X, S, C, V> {
+    pub fn into_config(self) -> X509PathFinderConfiguration<S, V> {
         self.config
     }
 
     #[cfg(not(test))]
-    async fn get_all(&self, url: &Url) -> X509ClientResult<X> {
-        if let AIA::Client(client) = &self.config.aia {
-            client.get_all(url).await
+    async fn get_all(&self, url: &Url) -> X509ClientResult<Vec<Certificate>> {
+        if let Some(client) = &self.config.aia {
+            Ok(client
+                .get_all(url)
+                .await?
+                .into_iter()
+                .map(|c| c.into())
+                .collect())
         } else {
-            Ok(X::from_iter(vec![]))
+            Ok(vec![])
         }
     }
 
     #[cfg(test)]
-    async fn get_all(&self, url: &Url) -> X509ClientResult<X> {
-        Ok(X::from_cer(url.to_string().as_bytes())?)
+    async fn get_all(&self, _: &Url) -> X509ClientResult<Vec<Certificate>> {
+        Ok(vec![])
     }
 }

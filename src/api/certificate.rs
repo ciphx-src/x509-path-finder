@@ -1,6 +1,7 @@
 use der::oid::db::rfc5280::{ID_AD_CA_ISSUERS, ID_PE_AUTHORITY_INFO_ACCESS};
 use der::{Decode, DecodeValue, Encode, Header, Length, Reader, Writer};
 use std::cmp::Ordering;
+use std::sync::Arc;
 use url::Url;
 use x509_cert::certificate::CertificateInner;
 use x509_cert::ext::pkix::name::GeneralName;
@@ -9,7 +10,7 @@ use x509_cert::Certificate as InnerCertificate;
 
 #[derive(Clone, Debug)]
 pub struct Certificate {
-    inner: InnerCertificate,
+    inner: Arc<InnerCertificate>,
     ord: usize,
 }
 
@@ -68,7 +69,7 @@ impl Encode for Certificate {
 impl<'r> Decode<'r> for Certificate {
     fn decode<R: Reader<'r>>(reader: &mut R) -> der::Result<Self> {
         let header = Header::decode(reader)?;
-        let inner = InnerCertificate::decode_value(reader, header)?;
+        let inner = InnerCertificate::decode_value(reader, header)?.into();
         Ok(Self { inner, ord: 0 })
     }
 }
@@ -103,12 +104,9 @@ impl Ord for Certificate {
 
 impl From<CertificateInner> for Certificate {
     fn from(inner: CertificateInner) -> Self {
-        Self { inner, ord: 0 }
-    }
-}
-
-impl From<Certificate> for CertificateInner {
-    fn from(src: Certificate) -> Self {
-        src.inner
+        Self {
+            inner: inner.into(),
+            ord: 0,
+        }
     }
 }

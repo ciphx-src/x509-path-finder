@@ -9,18 +9,18 @@ pub trait PathValidator {
     type PathValidatorError: PathValidatorError;
 
     /// Validates `path`, returning results as [`CertificatePathValidation`](crate::api::validator::CertificatePathValidation)
-    fn validate<'r>(
+    fn validate(
         &self,
-        path: Vec<&'r Certificate>,
-    ) -> Result<CertificatePathValidation<'r>, Self::PathValidatorError>;
+        path: Vec<Certificate>,
+    ) -> Result<CertificatePathValidation, Self::PathValidatorError>;
 }
 
 /// Result of [`validate`](crate::api::validator::PathValidator::validate)
-pub enum CertificatePathValidation<'r> {
+pub enum CertificatePathValidation {
     /// Valid path found
-    Found(Vec<&'r Certificate>),
+    Found(Vec<Certificate>),
     /// Valid path not found
-    NotFound(ValidateFailure<'r>),
+    NotFound(ValidateFailure),
 }
 
 /// Error trait

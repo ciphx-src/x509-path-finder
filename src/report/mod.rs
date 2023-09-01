@@ -7,22 +7,22 @@ use url::Url;
 
 /// Path search report returned by [`X509PathFinder::find`](crate::X509PathFinder::find)
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Report<'r> {
+pub struct Report {
     /// On validate success, `Option::Some` holds certificate path
-    pub path: Option<Vec<&'r Certificate>>,
+    pub path: Option<Vec<Certificate>>,
     /// On validate success, `Option::Some` holds certificate path origins
     pub origin: Option<Vec<CertificateOrigin>>,
     /// Duration of path search
     pub duration: Duration,
     /// Any validation failures reported by [`PathValidator`](crate::api::PathValidator)
-    pub failures: Vec<ValidateFailure<'r>>,
+    pub failures: Vec<ValidateFailure>,
 }
 
 /// Validation failures
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ValidateFailure<'r> {
+pub struct ValidateFailure {
     /// Certificate path of failed validation attempt
-    pub path: Vec<&'r Certificate>,
+    pub path: Vec<Certificate>,
     /// Human-readable reason for validation failure
     pub reason: String,
 }

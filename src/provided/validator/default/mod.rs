@@ -27,8 +27,8 @@ impl PathValidator for DefaultPathValidator {
 
     fn validate<'r>(
         &self,
-        path: Vec<&'r Certificate>,
-    ) -> Result<CertificatePathValidation<'r>, Self::PathValidatorError> {
+        path: Vec<Certificate>,
+    ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
             return Ok(CertificatePathValidation::NotFound(ValidateFailure {
                 path,

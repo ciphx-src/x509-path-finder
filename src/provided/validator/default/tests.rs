@@ -20,7 +20,7 @@ async fn test_verifier() {
     store.add(&root).unwrap();
 
     let verifier = DefaultPathValidator::new(store);
-    let path = verifier.validate(certificates.iter().collect()).unwrap();
+    let path = verifier.validate(certificates).unwrap();
 
     if let CertificatePathValidation::Found(path) = path {
         assert_eq!(2, path.len());

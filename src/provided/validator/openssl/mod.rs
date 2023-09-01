@@ -25,10 +25,10 @@ impl OpenSSLPathValidator {
 impl PathValidator for OpenSSLPathValidator {
     type PathValidatorError = OpenSSLError;
 
-    fn validate<'r>(
+    fn validate(
         &self,
-        path: Vec<&'r Certificate>,
-    ) -> Result<CertificatePathValidation<'r>, Self::PathValidatorError> {
+        path: Vec<Certificate>,
+    ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
             return Ok(CertificatePathValidation::NotFound(ValidateFailure {
                 path,
