@@ -6,21 +6,21 @@ use crate::report::CertificateOrigin;
 use url::Url;
 
 #[derive(Clone)]
-pub enum EdgeDisposition {
-    Certificate(Arc<Certificate>, CertificateOrigin),
-    Url(Arc<Url>, Arc<Certificate>),
+pub enum EdgeDisposition<'r> {
+    Certificate(&'r Certificate, CertificateOrigin),
+    Url(Arc<Url>, &'r Certificate),
     End,
 }
 
 #[derive(Clone)]
-pub struct Edges {
+pub struct Edges<'r> {
     serial: usize,
     visited: HashSet<usize>,
-    edges: Vec<Edge>,
+    edges: Vec<Edge<'r>>,
 }
 
-impl Edges {
-    pub fn new(certificate: Arc<Certificate>) -> Self {
+impl<'r> Edges<'r> {
+    pub fn new(certificate: &'r Certificate) -> Self {
         Self {
             serial: 0,
             visited: HashSet::new(),
@@ -36,16 +36,16 @@ impl Edges {
         self.edges.pop()
     }
 
-    pub fn extend<I: IntoIterator<Item = Edge>>(&mut self, edges: I) {
+    pub fn extend<I: IntoIterator<Item = Edge<'r>>>(&mut self, edges: I) {
         self.edges.extend(edges)
     }
 
     pub fn edge_from_certificate(
         &mut self,
-        parent: Option<Edge>,
-        certificate: Arc<Certificate>,
+        parent: Option<Edge<'r>>,
+        certificate: &'r Certificate,
         origin: CertificateOrigin,
-    ) -> Edge {
+    ) -> Edge<'r> {
         self.serial += 1;
         Edge::new(
             self.serial,
@@ -55,9 +55,9 @@ impl Edges {
     }
     pub fn edge_from_url(
         &mut self,
-        parent: Option<Edge>,
+        parent: Option<Edge<'r>>,
         url: Url,
-        holder: Arc<Certificate>,
+        holder: &'r Certificate,
     ) -> Edge {
         self.serial += 1;
         Edge::new(
@@ -67,7 +67,7 @@ impl Edges {
         )
     }
 
-    pub fn edge_from_end(&mut self, parent: Option<Edge>) -> Edge {
+    pub fn edge_from_end(&mut self, parent: Option<Edge<'r>>) -> Edge {
         self.serial += 1;
         Edge::new(self.serial, parent, EdgeDisposition::End)
     }
@@ -82,14 +82,14 @@ impl Edges {
 }
 
 #[derive(Clone)]
-pub struct Edge {
-    parent: Box<Option<Edge>>,
-    disposition: EdgeDisposition,
+pub struct Edge<'r> {
+    parent: Box<Option<Edge<'r>>>,
+    disposition: EdgeDisposition<'r>,
     serial: usize,
 }
 
-impl Edge {
-    fn new(serial: usize, parent: Option<Edge>, disposition: EdgeDisposition) -> Self {
+impl<'r> Edge<'r> {
+    fn new(serial: usize, parent: Option<Edge<'r>>, disposition: EdgeDisposition<'r>) -> Self {
         Self {
             parent: parent.into(),
             disposition,
@@ -97,7 +97,7 @@ impl Edge {
         }
     }
 
-    pub fn parent(&self) -> Option<Edge> {
+    pub fn parent(&self) -> Option<Edge<'r>> {
         self.parent.as_ref().clone()
     }
 
