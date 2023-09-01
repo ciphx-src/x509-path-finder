@@ -1,5 +1,3 @@
-use crate::api::CertificateError;
-use crate::X509PathFinderError;
 use openssl::error::ErrorStack;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -15,9 +13,9 @@ pub enum OpenSSLError {
     Error(String),
     OpenSslErrorStack(ErrorStack),
     OpenSSLX509IteratorError(OpenSSLX509IteratorError),
+    DerError(der::Error),
 }
 
-impl CertificateError for OpenSSLError {}
 impl X509IteratorError for OpenSSLError {}
 
 impl Display for OpenSSLError {
@@ -28,6 +26,9 @@ impl Display for OpenSSLError {
             }
             OpenSSLError::OpenSslErrorStack(e) => {
                 write!(f, "openssl certificate -> openssl error stack: {}", e)
+            }
+            OpenSSLError::DerError(e) => {
+                write!(f, "openssl certificate -> der error: {}", e)
             }
             OpenSSLError::OpenSSLX509IteratorError(e) => {
                 write!(f, "openssl certificate -> {}", e)
@@ -50,9 +51,9 @@ impl From<OpenSSLX509IteratorError> for OpenSSLError {
     }
 }
 
-impl From<OpenSSLError> for X509PathFinderError {
-    fn from(e: OpenSSLError) -> Self {
-        Self::CertificateError(Box::new(e))
+impl From<der::Error> for OpenSSLError {
+    fn from(e: der::Error) -> Self {
+        Self::DerError(e)
     }
 }
 

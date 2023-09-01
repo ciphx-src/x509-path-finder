@@ -1,4 +1,3 @@
-use crate::api::CertificateError;
 use crate::api::PathValidatorError;
 use std::convert::Infallible;
 use std::error::Error;
@@ -15,8 +14,6 @@ pub enum X509PathFinderError {
     Error(String),
     /// Errors from `X509Client`, when downloading certificates
     X509ClientError(X509ClientError),
-    /// [`Certificate`](crate::api::Certificate) parsing errors
-    CertificateError(Box<dyn CertificateError>),
     /// [`PathValidator`](crate::api::PathValidator) errors
     PathValidatorError(Box<dyn PathValidatorError>),
 }
@@ -28,9 +25,6 @@ impl Display for X509PathFinderError {
                 write!(f, "x509-path-finder -> error: {}", e)
             }
             X509PathFinderError::X509ClientError(e) => {
-                write!(f, "x509-path-finder -> {}", e)
-            }
-            X509PathFinderError::CertificateError(e) => {
                 write!(f, "x509-path-finder -> {}", e)
             }
             X509PathFinderError::PathValidatorError(e) => {
@@ -45,12 +39,6 @@ impl Error for X509PathFinderError {}
 impl From<X509ClientError> for X509PathFinderError {
     fn from(e: X509ClientError) -> Self {
         Self::X509ClientError(e)
-    }
-}
-
-impl From<Box<dyn CertificateError>> for X509PathFinderError {
-    fn from(e: Box<dyn CertificateError>) -> Self {
-        Self::CertificateError(e)
     }
 }
 

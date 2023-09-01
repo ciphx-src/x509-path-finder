@@ -1,137 +1,38 @@
-use crate::api::CertificateStore;
+use crate::api::{Certificate, CertificateStore};
 use crate::provided::store::default::DefaultCertificateStore;
-use crate::tests::test_certificate::certificate::{TestCertificate, TestCertificateNative};
-use std::sync::Arc;
+use crate::tests::material::load_certificates;
+use std::iter::once;
 
-#[test]
-fn test_ord() {
-    let mut store =
-        DefaultCertificateStore::<TestCertificate>::from_iter(build_certificates().into_iter());
-
-    store
-        .insert(TestCertificateNative {
-            issuer: 0,
-            subject: 0,
-            aia: vec![],
-        })
-        .unwrap();
-
-    store
-        .insert(TestCertificateNative {
-            issuer: 200,
-            subject: 200,
-            aia: vec![],
-        })
-        .unwrap();
-
-    store
-        .insert(TestCertificateNative {
-            issuer: 200,
-            subject: 201,
-            aia: vec![],
-        })
-        .unwrap();
-
-    let mut expected = build_certificates();
-    expected.append(&mut vec![
-        TestCertificateNative {
-            issuer: 200,
-            subject: 200,
-            aia: vec![],
-        },
-        TestCertificateNative {
-            issuer: 200,
-            subject: 201,
-            aia: vec![],
-        },
-    ]);
-    let expected = expected
+#[tokio::test]
+async fn test_ord() {
+    let root = load_certificates("vandelaybank.com.cer")
+        .await
+        .unwrap()
         .into_iter()
-        .map(|c| c.into())
-        .collect::<Vec<Arc<TestCertificateNative>>>();
+        .next()
+        .unwrap();
 
-    assert_eq!(expected, store.try_vec().unwrap())
+    let certificates = load_certificates("kim@id.vandelaybank.com.p7c")
+        .await
+        .unwrap();
+
+    let mut expected = certificates.clone();
+    expected.push(root.clone());
+
+    let mut store = DefaultCertificateStore::from_iter(certificates);
+    store.extend(once(root));
+
+    assert_eq!(expected, store.into_iter().collect::<Vec<Certificate>>())
 }
 
-#[test]
-fn test_issuers() {
-    let store =
-        DefaultCertificateStore::<TestCertificate>::from_iter(build_certificates().into_iter());
+#[tokio::test]
+async fn test_issuers() {
+    let certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
+        .await
+        .unwrap();
 
-    assert_eq!(
-        vec![TestCertificate::from(TestCertificateNative {
-            issuer: 0,
-            subject: 0,
-            aia: vec![],
-        })],
-        store
-            .issuers(&TestCertificate::from(TestCertificateNative {
-                issuer: 0,
-                subject: 1,
-                aia: vec![],
-            }))
-            .unwrap()
-    );
+    let store = DefaultCertificateStore::from_iter(certificates.clone());
 
-    assert_eq!(
-        vec![
-            TestCertificate::from(TestCertificateNative {
-                issuer: 100,
-                subject: 100,
-                aia: vec![],
-            }),
-            TestCertificate::from(TestCertificateNative {
-                issuer: 1000,
-                subject: 100,
-                aia: vec![],
-            })
-        ],
-        store
-            .issuers(&TestCertificate::from(TestCertificateNative {
-                issuer: 100,
-                subject: 101,
-                aia: vec![],
-            }))
-            .unwrap()
-    );
-}
-
-fn build_certificates() -> Vec<TestCertificateNative> {
-    vec![
-        TestCertificateNative {
-            issuer: 0,
-            subject: 0,
-            aia: vec![],
-        },
-        TestCertificateNative {
-            issuer: 0,
-            subject: 1,
-            aia: vec![],
-        },
-        TestCertificateNative {
-            issuer: 0,
-            subject: 2,
-            aia: vec![],
-        },
-        TestCertificateNative {
-            issuer: 100,
-            subject: 100,
-            aia: vec![],
-        },
-        TestCertificateNative {
-            issuer: 100,
-            subject: 101,
-            aia: vec![],
-        },
-        TestCertificateNative {
-            issuer: 100,
-            subject: 102,
-            aia: vec![],
-        },
-        TestCertificateNative {
-            issuer: 1000,
-            subject: 100,
-            aia: vec![],
-        },
-    ]
+    assert!(&certificates[1].issued(&certificates[0]));
+    assert_eq!(vec![&certificates[1]], store.issuers(&certificates[0]))
 }

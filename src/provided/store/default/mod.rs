@@ -1,25 +1,18 @@
-mod certificate;
-
 #[cfg(test)]
 mod tests;
 
 use crate::api::{Certificate, CertificateStore, CertificateStoreError};
-use std::collections::BTreeSet;
-use std::sync::Arc;
-use std::vec;
-
-use crate::provided::store::default::certificate::CertificateOrd;
-use crate::X509PathFinderError;
+use crate::provided::default_common::result::DefaultError;
+use std::collections::{btree_set, BTreeSet};
 
 /// Default [`CertificateStore`](crate::api::CertificateStore) implementation.
-/// Not thread safe. See [`ConcurrentCertificateStore`](crate::provided::store::ConcurrentCertificateStore) for a concurrent implementation.
 #[derive(Clone)]
-pub struct DefaultCertificateStore<'r, C: Certificate<'r>> {
-    certificates: BTreeSet<CertificateOrd<'r, C>>,
+pub struct DefaultCertificateStore {
+    certificates: BTreeSet<Certificate>,
     serial: usize,
 }
 
-impl<'r, C: Certificate<'r>> DefaultCertificateStore<'r, C> {
+impl DefaultCertificateStore {
     pub fn new() -> Self {
         Self {
             certificates: Default::default(),
@@ -28,77 +21,54 @@ impl<'r, C: Certificate<'r>> DefaultCertificateStore<'r, C> {
     }
 }
 
-impl<'r, C: Certificate<'r>> Default for DefaultCertificateStore<'r, C> {
+impl Default for DefaultCertificateStore {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'r, C: Certificate<'r>> CertificateStore<'r> for DefaultCertificateStore<'r, C>
-where
-    X509PathFinderError: From<<C as Certificate<'r>>::CertificateError>,
-{
-    type Certificate = C;
-    type CertificateStoreError = X509PathFinderError;
+impl IntoIterator for DefaultCertificateStore {
+    type Item = Certificate;
+    type IntoIter = btree_set::IntoIter<Certificate>;
 
-    fn from_iter<IT: Into<Self::Certificate>, I: IntoIterator<Item = IT>>(iter: I) -> Self {
-        let certificates = iter
-            .into_iter()
-            .enumerate()
-            .map(|(i, c)| CertificateOrd::new(c, i))
-            .collect::<BTreeSet<CertificateOrd<'r, C>>>();
+    fn into_iter(self) -> Self::IntoIter {
+        self.certificates.into_iter()
+    }
+}
+
+impl FromIterator<Certificate> for DefaultCertificateStore {
+    fn from_iter<T: IntoIterator<Item = Certificate>>(iter: T) -> Self {
+        let certificates = BTreeSet::from_iter(iter.into_iter().enumerate().map(|(i, mut c)| {
+            c.set_ord(i);
+            c
+        }));
         let serial = certificates.len();
         Self {
             certificates,
             serial,
         }
     }
+}
 
-    fn try_vec(
-        &self,
-    ) -> Result<Vec<Arc<<Self::Certificate as Certificate<'r>>::Native>>, Self::CertificateStoreError>
-    {
-        Ok(self
-            .certificates
-            .iter()
-            .map(|c| c.as_ref().clone().into())
-            .collect())
-    }
-
-    fn insert<IT: Into<Self::Certificate>>(
-        &mut self,
-        certificate: IT,
-    ) -> Result<bool, Self::CertificateStoreError> {
-        self.serial += 1;
-        Ok(self
-            .certificates
-            .insert(CertificateOrd::new(certificate, self.serial)))
-    }
-
-    fn append<IT: Into<Self::Certificate>, I: Iterator<Item = IT>>(
-        &mut self,
-        certificates: I,
-    ) -> Result<(), Self::CertificateStoreError> {
-        let mut certificates = certificates
-            .map(|c| {
-                self.serial += 1;
-                CertificateOrd::new(c, self.serial)
-            })
-            .collect::<BTreeSet<CertificateOrd<'r, C>>>();
-        self.certificates.append(&mut certificates);
-        Ok(())
-    }
-
-    fn issuers(&self, subject: &C) -> Result<Vec<Self::Certificate>, Self::CertificateStoreError> {
-        let mut issuers = vec![];
-        for issuer_candidate in self.certificates.iter() {
-            if issuer_candidate.as_ref().issued(subject)? {
-                issuers.push(issuer_candidate.as_ref().clone())
-            }
-        }
-
-        Ok(issuers)
+impl Extend<Certificate> for DefaultCertificateStore {
+    fn extend<T: IntoIterator<Item = Certificate>>(&mut self, iter: T) {
+        self.certificates.extend(iter.into_iter().map(|mut c| {
+            self.serial += 1;
+            c.set_ord(self.serial);
+            c
+        }));
     }
 }
 
-impl CertificateStoreError for X509PathFinderError {}
+impl CertificateStore for DefaultCertificateStore {
+    type CertificateStoreError = DefaultError;
+
+    fn issuers(&self, subject: &Certificate) -> Vec<&Certificate> {
+        self.certificates
+            .iter()
+            .filter(|c| c.issued(subject))
+            .collect()
+    }
+}
+
+impl CertificateStoreError for DefaultError {}

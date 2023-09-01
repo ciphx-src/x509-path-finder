@@ -1,61 +1,52 @@
-use crate::api::CertificateError;
-use crate::X509PathFinderError;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::result;
 use x509_client::api::X509IteratorError;
 use x509_client::X509ClientError;
 
-pub type DefaultCertificateResult<T> = result::Result<T, DefaultCertificateError>;
+pub type DefaultResult<T> = result::Result<T, DefaultError>;
 
 #[derive(Debug)]
-pub enum DefaultCertificateError {
+pub enum DefaultError {
     Error(String),
-    DerError(cms::cert::x509::der::Error),
+    DerError(der::Error),
     RustlsError(rustls::Error),
 }
 
-impl CertificateError for DefaultCertificateError {}
-impl X509IteratorError for DefaultCertificateError {}
+impl X509IteratorError for DefaultError {}
 
-impl Display for DefaultCertificateError {
+impl Display for DefaultError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            DefaultCertificateError::Error(e) => {
+            DefaultError::Error(e) => {
                 write!(f, "default certificate -> error: {}", e)
             }
-            DefaultCertificateError::DerError(e) => {
+            DefaultError::DerError(e) => {
                 write!(f, "default certificate -> der error: {}", e)
             }
-            DefaultCertificateError::RustlsError(e) => {
+            DefaultError::RustlsError(e) => {
                 write!(f, "default certificate -> rustls error: {}", e)
             }
         }
     }
 }
 
-impl Error for DefaultCertificateError {}
+impl Error for DefaultError {}
 
-impl From<cms::cert::x509::der::Error> for DefaultCertificateError {
-    fn from(e: cms::cert::x509::der::Error) -> Self {
+impl From<der::Error> for DefaultError {
+    fn from(e: der::Error) -> Self {
         Self::DerError(e)
     }
 }
 
-impl From<rustls::Error> for DefaultCertificateError {
+impl From<rustls::Error> for DefaultError {
     fn from(e: rustls::Error) -> Self {
         Self::RustlsError(e)
     }
 }
 
-impl From<DefaultCertificateError> for X509PathFinderError {
-    fn from(e: DefaultCertificateError) -> Self {
-        Self::CertificateError(Box::new(e))
-    }
-}
-
-impl From<DefaultCertificateError> for X509ClientError {
-    fn from(e: DefaultCertificateError) -> Self {
+impl From<DefaultError> for X509ClientError {
+    fn from(e: DefaultError) -> Self {
         Self::X509IteratorError(Box::new(e))
     }
 }

@@ -1,57 +1,50 @@
 //! OpenSSL [`PathValidator`](crate::api::PathValidator) implementations
 
-use crate::api::{CertificatePathValidation, PathValidator, PathValidatorError};
-use crate::provided::certificate::openssl::OpenSSLCertificate;
+use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
 use crate::provided::openssl_common::result::OpenSSLError;
-use crate::report::{CertificatePath, ValidateFailure};
+use crate::report::ValidateFailure;
+use der::Encode;
 use openssl::stack::Stack;
 use openssl::x509::store::X509Store;
-use openssl::x509::{X509StoreContext, X509VerifyResult};
-use std::marker::PhantomData;
+use openssl::x509::{X509StoreContext, X509VerifyResult, X509};
 
 #[cfg(test)]
 pub mod tests;
 
 /// OpenSSL [`PathValidator`](crate::api::PathValidator)
-pub struct OpenSSLPathValidator<'r> {
+pub struct OpenSSLPathValidator {
     store: X509Store,
-    lifetime: PhantomData<&'r ()>,
 }
-impl<'r> OpenSSLPathValidator<'r> {
+impl OpenSSLPathValidator {
     /// Constructor takes a configured OpenSSL X509Store
     pub fn new(store: X509Store) -> Self {
-        Self {
-            store,
-            lifetime: PhantomData,
-        }
+        Self { store }
     }
 }
 
-impl<'r> PathValidator<'r> for OpenSSLPathValidator<'r> {
-    type Certificate = OpenSSLCertificate<'r>;
+impl PathValidator for OpenSSLPathValidator {
     type PathValidatorError = OpenSSLError;
 
-    fn validate(
+    fn validate<'r>(
         &self,
-        path: Vec<OpenSSLCertificate<'r>>,
-    ) -> Result<CertificatePathValidation<'r, OpenSSLCertificate<'r>>, Self::PathValidatorError>
-    {
+        path: Vec<&'r Certificate>,
+    ) -> Result<CertificatePathValidation<'r>, Self::PathValidatorError> {
         if path.is_empty() {
             return Ok(CertificatePathValidation::NotFound(ValidateFailure {
-                path: CertificatePath::from_iter(path),
+                path,
                 reason: "path is empty".to_string(),
             }));
         }
 
         let mut openssl_path = Stack::new()?;
         for certificate in &path[1..] {
-            openssl_path.push(certificate.clone().into())?;
+            openssl_path.push(X509::from_der(&certificate.to_der()?)?)?;
         }
 
         let mut context = X509StoreContext::new()?;
         let verified = context.init(
             self.store.as_ref(),
-            path[0].as_ref(),
+            X509::from_der(&path[0].to_der()?)?.as_ref(),
             openssl_path.as_ref(),
             |context| {
                 Ok(match context.verify_cert()? {
@@ -62,12 +55,10 @@ impl<'r> PathValidator<'r> for OpenSSLPathValidator<'r> {
         )?;
 
         match verified {
-            VerifyResult::Success => Ok(CertificatePathValidation::Found(
-                CertificatePath::from_iter(path),
-            )),
+            VerifyResult::Success => Ok(CertificatePathValidation::Found(path)),
 
             VerifyResult::Failure(f) => Ok(CertificatePathValidation::NotFound(ValidateFailure {
-                path: CertificatePath::from_iter(path),
+                path,
                 reason: f.error_string().to_string(),
             })),
         }
