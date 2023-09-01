@@ -5,7 +5,7 @@ pub mod result;
 pub mod tests;
 
 use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
-use crate::provided::validator::openssl::result::OpenSSLError;
+use crate::provided::validator::openssl::result::OpenSSLPathValidatorError;
 use crate::report::ValidateFailure;
 use der::Encode;
 use openssl::stack::Stack;
@@ -24,7 +24,7 @@ impl OpenSSLPathValidator {
 }
 
 impl PathValidator for OpenSSLPathValidator {
-    type PathValidatorError = OpenSSLError;
+    type PathValidatorError = OpenSSLPathValidatorError;
 
     fn validate(
         &self,
@@ -66,7 +66,7 @@ impl PathValidator for OpenSSLPathValidator {
     }
 }
 
-impl PathValidatorError for OpenSSLError {}
+impl PathValidatorError for OpenSSLPathValidatorError {}
 
 enum VerifyResult {
     Success,

@@ -5,57 +5,57 @@ use std::fmt::{Display, Formatter};
 use std::result;
 use x509_client::provided::openssl::OpenSSLX509IteratorError;
 
-pub type OpenSSLResult<T> = result::Result<T, OpenSSLError>;
+pub type OpenSSLPathValidatorResult<T> = result::Result<T, OpenSSLPathValidatorError>;
 
 #[derive(Debug)]
-pub enum OpenSSLError {
+pub enum OpenSSLPathValidatorError {
     Error(String),
     OpenSslErrorStack(ErrorStack),
     OpenSSLX509IteratorError(OpenSSLX509IteratorError),
     DerError(der::Error),
 }
 
-impl Display for OpenSSLError {
+impl Display for OpenSSLPathValidatorError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            OpenSSLError::Error(e) => {
-                write!(f, "openssl certificate -> error: {}", e)
+            OpenSSLPathValidatorError::Error(e) => {
+                write!(f, "openssl path validator -> error: {}", e)
             }
-            OpenSSLError::OpenSslErrorStack(e) => {
-                write!(f, "openssl certificate -> openssl error stack: {}", e)
+            OpenSSLPathValidatorError::OpenSslErrorStack(e) => {
+                write!(f, "openssl path validator -> openssl error stack: {}", e)
             }
-            OpenSSLError::DerError(e) => {
-                write!(f, "openssl certificate -> der error: {}", e)
+            OpenSSLPathValidatorError::DerError(e) => {
+                write!(f, "openssl path validator -> der error: {}", e)
             }
-            OpenSSLError::OpenSSLX509IteratorError(e) => {
-                write!(f, "openssl certificate -> {}", e)
+            OpenSSLPathValidatorError::OpenSSLX509IteratorError(e) => {
+                write!(f, "openssl path validator -> {}", e)
             }
         }
     }
 }
 
-impl Error for OpenSSLError {}
+impl Error for OpenSSLPathValidatorError {}
 
-impl From<ErrorStack> for OpenSSLError {
+impl From<ErrorStack> for OpenSSLPathValidatorError {
     fn from(e: ErrorStack) -> Self {
         Self::OpenSslErrorStack(e)
     }
 }
 
-impl From<OpenSSLX509IteratorError> for OpenSSLError {
+impl From<OpenSSLX509IteratorError> for OpenSSLPathValidatorError {
     fn from(e: OpenSSLX509IteratorError) -> Self {
         Self::OpenSSLX509IteratorError(e)
     }
 }
 
-impl From<der::Error> for OpenSSLError {
+impl From<der::Error> for OpenSSLPathValidatorError {
     fn from(e: der::Error) -> Self {
         Self::DerError(e)
     }
 }
 
-impl From<OpenSSLError> for X509PathFinderError {
-    fn from(e: OpenSSLError) -> Self {
+impl From<OpenSSLPathValidatorError> for X509PathFinderError {
+    fn from(e: OpenSSLPathValidatorError) -> Self {
         Self::PathValidatorError(Box::new(e))
     }
 }

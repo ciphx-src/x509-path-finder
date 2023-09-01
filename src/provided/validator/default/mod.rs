@@ -5,7 +5,7 @@ pub mod result;
 pub mod tests;
 
 use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
-use crate::provided::validator::default::result::DefaultError;
+use crate::provided::validator::default::result::DefaultPathValidatorError;
 use crate::report::ValidateFailure;
 use der::Encode;
 use rustls::server::ParsedCertificate;
@@ -24,7 +24,7 @@ impl DefaultPathValidator {
 }
 
 impl PathValidator for DefaultPathValidator {
-    type PathValidatorError = DefaultError;
+    type PathValidatorError = DefaultPathValidatorError;
 
     fn validate<'r>(
         &self,
@@ -57,4 +57,4 @@ impl PathValidator for DefaultPathValidator {
         }
     }
 }
-impl PathValidatorError for DefaultError {}
+impl PathValidatorError for DefaultPathValidatorError {}
