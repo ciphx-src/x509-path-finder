@@ -7,8 +7,8 @@ use url::Url;
 
 #[derive(Clone)]
 pub enum EdgeDisposition {
-    Certificate(Certificate, CertificateOrigin),
-    Url(Arc<Url>, Certificate),
+    Certificate(Arc<Certificate>, CertificateOrigin),
+    Url(Arc<Url>, Arc<Certificate>),
     End,
 }
 
@@ -20,7 +20,7 @@ pub struct Edges {
 }
 
 impl Edges {
-    pub fn new(certificate: Certificate) -> Self {
+    pub fn new(certificate: Arc<Certificate>) -> Self {
         Self {
             serial: 0,
             visited: HashSet::new(),
@@ -43,7 +43,7 @@ impl Edges {
     pub fn edge_from_certificate(
         &mut self,
         parent: Option<Edge>,
-        certificate: Certificate,
+        certificate: Arc<Certificate>,
         origin: CertificateOrigin,
     ) -> Edge {
         self.serial += 1;
@@ -53,7 +53,12 @@ impl Edges {
             EdgeDisposition::Certificate(certificate, origin),
         )
     }
-    pub fn edge_from_url(&mut self, parent: Option<Edge>, url: Url, holder: Certificate) -> Edge {
+    pub fn edge_from_url(
+        &mut self,
+        parent: Option<Edge>,
+        url: Url,
+        holder: Arc<Certificate>,
+    ) -> Edge {
         self.serial += 1;
         Edge::new(
             self.serial,
