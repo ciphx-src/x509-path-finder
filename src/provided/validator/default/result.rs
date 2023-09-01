@@ -1,3 +1,4 @@
+use crate::X509PathFinderError;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::result;
@@ -38,5 +39,11 @@ impl From<der::Error> for DefaultError {
 impl From<rustls::Error> for DefaultError {
     fn from(e: rustls::Error) -> Self {
         Self::RustlsError(e)
+    }
+}
+
+impl From<DefaultError> for X509PathFinderError {
+    fn from(e: DefaultError) -> Self {
+        Self::PathValidatorError(Box::new(e))
     }
 }

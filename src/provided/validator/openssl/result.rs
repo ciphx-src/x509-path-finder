@@ -1,3 +1,4 @@
+use crate::X509PathFinderError;
 use openssl::error::ErrorStack;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -50,5 +51,11 @@ impl From<OpenSSLX509IteratorError> for OpenSSLError {
 impl From<der::Error> for OpenSSLError {
     fn from(e: der::Error) -> Self {
         Self::DerError(e)
+    }
+}
+
+impl From<OpenSSLError> for X509PathFinderError {
+    fn from(e: OpenSSLError) -> Self {
+        Self::PathValidatorError(Box::new(e))
     }
 }

@@ -1,15 +1,16 @@
 //! OpenSSL [`PathValidator`](crate::api::PathValidator) implementations
 
+pub mod result;
+#[cfg(test)]
+pub mod tests;
+
 use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
-use crate::provided::openssl_common::result::OpenSSLError;
+use crate::provided::validator::openssl::result::OpenSSLError;
 use crate::report::ValidateFailure;
 use der::Encode;
 use openssl::stack::Stack;
 use openssl::x509::store::X509Store;
 use openssl::x509::{X509StoreContext, X509VerifyResult, X509};
-
-#[cfg(test)]
-pub mod tests;
 
 /// OpenSSL [`PathValidator`](crate::api::PathValidator)
 pub struct OpenSSLPathValidator {

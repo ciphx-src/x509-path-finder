@@ -1,20 +1,21 @@
-use crate::api::CertificateStore;
 use crate::provided::store::DefaultCertificateStore;
 use crate::provided::validator::openssl::OpenSSLPathValidator;
 use crate::report::CertificateOrigin;
-use crate::tests::material::load_material;
-use crate::{NoAIA, X509PathFinder, X509PathFinderConfiguration, AIA};
+use crate::tests::material::{load_certificates, load_material};
+use crate::{X509PathFinder, X509PathFinderConfiguration};
 use openssl::x509::store::X509StoreBuilder;
 use openssl::x509::verify::X509VerifyFlags;
 use openssl::x509::X509;
+use std::sync::RwLock;
 use std::time::Duration;
 
 #[tokio::test]
 async fn test_find() {
-    let certificate_data = load_material("kim@id.vandelaybank.com-fullchain.pem").await;
-    let certificates = X509::stack_from_pem(&certificate_data).unwrap();
+    let certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
+        .await
+        .unwrap();
 
-    let root = load_material("vandelaybank.com.cer").await;
+    let root = load_material("vandelaybank.com.cer").await.unwrap();
     let root = X509::from_der(&root).unwrap();
 
     let mut builder = X509StoreBuilder::new().unwrap();
@@ -26,14 +27,14 @@ async fn test_find() {
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
-        aia: AIA::None(NoAIA::default()),
-        store,
+        aia: None,
+        store: RwLock::new(store).into(),
         validator,
     });
 
-    let report = search.find(certificates[0].as_ref()).await.unwrap();
+    let report = search.find(certificates[0].clone()).await.unwrap();
 
-    let path = report.path.unwrap().into_iter().collect::<Vec<X509>>();
+    let path = report.path.unwrap().into_iter();
 
     assert_eq!(2, path.len());
     assert_eq!(
@@ -41,9 +42,9 @@ async fn test_find() {
         report.origin.unwrap()
     );
 
-    let report = search.find(certificates[1].as_ref()).await.unwrap();
+    let report = search.find(certificates[1].clone()).await.unwrap();
 
-    let path = report.path.unwrap().into_iter().collect::<Vec<X509>>();
+    let path = report.path.unwrap().into_iter();
 
     assert_eq!(1, path.len());
     assert_eq!(vec![CertificateOrigin::Find], report.origin.unwrap());

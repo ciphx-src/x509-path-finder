@@ -1,15 +1,16 @@
 //! Default [`PathValidator`](crate::api::PathValidator) implementations
 
+pub mod result;
+#[cfg(test)]
+pub mod tests;
+
 use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
-use crate::provided::default_common::result::DefaultError;
+use crate::provided::validator::default::result::DefaultError;
 use crate::report::ValidateFailure;
 use der::Encode;
 use rustls::server::ParsedCertificate;
 use rustls::{Certificate as RustlsCertificate, RootCertStore};
 use std::time::SystemTime;
-
-#[cfg(test)]
-pub mod tests;
 
 /// Default [`PathValidator`](crate::api::PathValidator)
 pub struct DefaultPathValidator {
