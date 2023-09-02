@@ -1,4 +1,4 @@
-use crate::api::certificate::Certificate;
+use crate::api::Certificate;
 use crate::report::ValidateFailure;
 use std::fmt::{Debug, Display};
 

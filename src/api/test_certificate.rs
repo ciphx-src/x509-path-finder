@@ -1,16 +1,17 @@
 use crate::{X509PathFinderError, X509PathFinderResult};
 use base64::{engine::general_purpose, Engine as _};
+use der::{Decode, Encode, Length, Reader, Writer};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use url::Url;
 
 #[derive(Clone, Debug)]
-pub struct TestCertificate {
+pub struct Certificate {
     pub inner: TestCertificateInner,
     ord: usize,
 }
 
-impl TestCertificate {
+impl Certificate {
     pub fn issued(&self, subject: &Self) -> bool {
         self.inner.subject == subject.inner.issuer
     }
@@ -24,7 +25,7 @@ impl TestCertificate {
     }
 }
 
-impl TryFrom<&Url> for TestCertificate {
+impl TryFrom<&Url> for Certificate {
     type Error = X509PathFinderError;
 
     fn try_from(url: &Url) -> Result<Self, Self::Error> {
@@ -35,29 +36,29 @@ impl TryFrom<&Url> for TestCertificate {
     }
 }
 
-impl TryFrom<&TestCertificate> for Url {
+impl TryFrom<&Certificate> for Url {
     type Error = X509PathFinderError;
 
-    fn try_from(src: &TestCertificate) -> Result<Self, Self::Error> {
+    fn try_from(src: &Certificate) -> Result<Self, Self::Error> {
         (&src.inner).try_into()
     }
 }
 
-impl PartialEq for TestCertificate {
+impl PartialEq for Certificate {
     fn eq(&self, other: &Self) -> bool {
         self.inner.eq(&other.inner)
     }
 }
 
-impl Eq for TestCertificate {}
+impl Eq for Certificate {}
 
-impl PartialOrd for TestCertificate {
+impl PartialOrd for Certificate {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for TestCertificate {
+impl Ord for Certificate {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.eq(other) {
             return Ordering::Equal;
@@ -68,6 +69,29 @@ impl Ord for TestCertificate {
         }
 
         Ordering::Less
+    }
+}
+
+impl Encode for Certificate {
+    fn encoded_len(&self) -> der::Result<Length> {
+        Ok(Length::new(0))
+    }
+
+    fn encode(&self, _: &mut impl Writer) -> der::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'r> Decode<'r> for Certificate {
+    fn decode<R: Reader<'r>>(_: &mut R) -> der::Result<Self> {
+        Ok(Self {
+            inner: TestCertificateInner {
+                issuer: 0,
+                subject: 0,
+                aia: vec![],
+            },
+            ord: 0,
+        })
     }
 }
 
@@ -127,12 +151,12 @@ impl TryFrom<&TestCertificateInner> for Url {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::test_certificate::{TestCertificate, TestCertificateInner};
+    use crate::api::{Certificate, TestCertificateInner};
     use url::Url;
 
     #[test]
     fn test_serializer() {
-        let src_certificate = TestCertificate {
+        let src_certificate = Certificate {
             inner: TestCertificateInner {
                 issuer: 0,
                 subject: 1,
@@ -149,7 +173,7 @@ mod tests {
 
         let certificate_as_url = Url::try_from(&src_certificate).unwrap();
 
-        let certificate_from_url = TestCertificate::try_from(&certificate_as_url).unwrap();
+        let certificate_from_url = Certificate::try_from(&certificate_as_url).unwrap();
 
         assert_eq!(src_certificate, certificate_from_url)
     }
