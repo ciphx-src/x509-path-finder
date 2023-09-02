@@ -3,14 +3,12 @@ use der::{Decode, DecodeValue, Encode, Header, Length, Reader, Writer};
 use std::cmp::Ordering;
 use std::sync::Arc;
 use url::Url;
-use x509_cert::certificate::CertificateInner;
 use x509_cert::ext::pkix::name::GeneralName;
 use x509_cert::ext::pkix::AuthorityInfoAccessSyntax;
-use x509_cert::Certificate as InnerCertificate;
 
 #[derive(Clone, Debug)]
 pub struct Certificate {
-    inner: Arc<InnerCertificate>,
+    inner: Arc<x509_cert::Certificate>,
     ord: usize,
 }
 
@@ -69,7 +67,7 @@ impl Encode for Certificate {
 impl<'r> Decode<'r> for Certificate {
     fn decode<R: Reader<'r>>(reader: &mut R) -> der::Result<Self> {
         let header = Header::decode(reader)?;
-        let inner = InnerCertificate::decode_value(reader, header)?.into();
+        let inner = x509_cert::Certificate::decode_value(reader, header)?.into();
         Ok(Self { inner, ord: 0 })
     }
 }
@@ -102,8 +100,8 @@ impl Ord for Certificate {
     }
 }
 
-impl From<CertificateInner> for Certificate {
-    fn from(inner: CertificateInner) -> Self {
+impl From<x509_cert::Certificate> for Certificate {
+    fn from(inner: x509_cert::Certificate) -> Self {
         Self {
             inner: inner.into(),
             ord: 0,
