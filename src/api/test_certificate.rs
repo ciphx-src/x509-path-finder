@@ -8,7 +8,7 @@ use url::Url;
 #[derive(Clone, Debug)]
 pub struct Certificate {
     pub inner: TestCertificateInner,
-    ord: usize,
+    pub ord: usize,
 }
 
 impl Certificate {
