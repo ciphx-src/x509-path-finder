@@ -4,14 +4,13 @@ mod tests;
 use crate::api::Certificate;
 use std::collections::{btree_set, BTreeSet};
 
-/// Default [`CertificateStore`](crate::api::CertificateStore) implementation.
 #[derive(Clone)]
-pub struct DefaultCertificateStore {
+pub struct CertificateStore {
     certificates: BTreeSet<Certificate>,
     serial: usize,
 }
 
-impl DefaultCertificateStore {
+impl CertificateStore {
     pub fn new() -> Self {
         Self {
             certificates: Default::default(),
@@ -26,13 +25,13 @@ impl DefaultCertificateStore {
     }
 }
 
-impl Default for DefaultCertificateStore {
+impl Default for CertificateStore {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl IntoIterator for DefaultCertificateStore {
+impl IntoIterator for CertificateStore {
     type Item = Certificate;
     type IntoIter = btree_set::IntoIter<Certificate>;
 
@@ -41,7 +40,7 @@ impl IntoIterator for DefaultCertificateStore {
     }
 }
 
-impl FromIterator<Certificate> for DefaultCertificateStore {
+impl FromIterator<Certificate> for CertificateStore {
     fn from_iter<T: IntoIterator<Item = Certificate>>(iter: T) -> Self {
         let certificates = BTreeSet::from_iter(iter.into_iter().enumerate().map(|(i, mut c)| {
             c.set_ord(i);
@@ -55,7 +54,7 @@ impl FromIterator<Certificate> for DefaultCertificateStore {
     }
 }
 
-impl Extend<Certificate> for DefaultCertificateStore {
+impl Extend<Certificate> for CertificateStore {
     fn extend<T: IntoIterator<Item = Certificate>>(&mut self, iter: T) {
         self.certificates.extend(iter.into_iter().map(|mut c| {
             self.serial += 1;

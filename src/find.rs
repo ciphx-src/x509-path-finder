@@ -14,7 +14,7 @@ use {
 use crate::api::{Certificate, CertificatePathValidation, PathValidator};
 use crate::edge::{Edge, EdgeDisposition, Edges};
 use crate::report::{CertificateOrigin, Found, Report, ValidationFailure};
-use crate::store::DefaultCertificateStore;
+use crate::store::CertificateStore;
 use crate::{X509PathFinderError, X509PathFinderResult};
 
 /// [`X509PathFinder`](crate::X509PathFinder) configuration
@@ -39,7 +39,7 @@ where
     V: PathValidator,
 {
     config: X509PathFinderConfiguration<V>,
-    store: DefaultCertificateStore,
+    store: CertificateStore,
 }
 
 impl<V> X509PathFinder<V>
@@ -54,7 +54,7 @@ where
     ) -> Self {
         X509PathFinder {
             config,
-            store: DefaultCertificateStore::from_iter(certificates),
+            store: CertificateStore::from_iter(certificates),
         }
     }
 

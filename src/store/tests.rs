@@ -1,9 +1,9 @@
 use crate::api::{Certificate, TestCertificateInner};
-use crate::store::DefaultCertificateStore;
+use crate::store::CertificateStore;
 
 #[test]
 fn test_ord() {
-    let mut store = DefaultCertificateStore::from_iter(build_certificates().into_iter());
+    let mut store = CertificateStore::from_iter(build_certificates().into_iter());
 
     store.extend(vec![
         Certificate {
@@ -57,7 +57,7 @@ fn test_ord() {
 
 #[test]
 fn test_issuers() {
-    let store = DefaultCertificateStore::from_iter(build_certificates().into_iter());
+    let store = CertificateStore::from_iter(build_certificates().into_iter());
 
     assert_eq!(
         vec![&Certificate {
