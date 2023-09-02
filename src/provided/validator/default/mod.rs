@@ -1,8 +1,6 @@
 //! Default [`PathValidator`](crate::api::PathValidator) implementations
 
 pub mod result;
-#[cfg(test)]
-pub mod tests;
 
 use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
 use crate::provided::validator::default::result::DefaultPathValidatorError;

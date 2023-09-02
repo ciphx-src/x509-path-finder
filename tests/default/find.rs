@@ -1,13 +1,13 @@
-use crate::provided::store::DefaultCertificateStore;
-use crate::report::CertificateOrigin;
-use crate::tests::material::{load_certificates, load_material};
-use crate::{X509PathFinder, X509PathFinderConfiguration};
 use rustls::{Certificate as RustlsCertificate, RootCertStore};
 use std::iter::once;
 use std::sync::RwLock;
 use std::time::Duration;
+use x509_path_finder::provided::store::DefaultCertificateStore;
+use x509_path_finder::report::CertificateOrigin;
+use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration};
+use x509_path_finder_material::{load_certificates, load_material};
 
-use crate::provided::validator::default::DefaultPathValidator;
+use x509_path_finder::provided::validator::default::DefaultPathValidator;
 
 #[tokio::test]
 async fn test_find() {

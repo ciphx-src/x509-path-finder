@@ -30,6 +30,7 @@ serde_json = { version = "1.0.105" }
 base64 = { version = "0.21.2" }
 url = { version = "2.4.0", features = ["serde"] }
 x509-client = { version = "2.0.1" }
+x509-path-finder-material = { path = "./material" }
 
 [features]
 default = ["rustls"]

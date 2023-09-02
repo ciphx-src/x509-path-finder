@@ -1,13 +1,13 @@
-use crate::provided::store::DefaultCertificateStore;
-use crate::provided::validator::openssl::OpenSSLPathValidator;
-use crate::report::CertificateOrigin;
-use crate::tests::material::{load_certificates, load_material};
-use crate::{X509PathFinder, X509PathFinderConfiguration};
 use openssl::x509::store::X509StoreBuilder;
 use openssl::x509::verify::X509VerifyFlags;
 use openssl::x509::X509;
 use std::sync::RwLock;
 use std::time::Duration;
+use x509_path_finder::provided::store::DefaultCertificateStore;
+use x509_path_finder::provided::validator::openssl::OpenSSLPathValidator;
+use x509_path_finder::report::CertificateOrigin;
+use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration};
+use x509_path_finder_material::{load_certificates, load_material};
 
 #[tokio::test]
 async fn test_find() {

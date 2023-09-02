@@ -1,5 +1,5 @@
-use crate::tests::material::load_certificates;
 use url::Url;
+use x509_path_finder_material::load_certificates;
 
 #[tokio::test]
 async fn test_issuers() {

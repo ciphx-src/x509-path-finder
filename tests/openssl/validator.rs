@@ -1,9 +1,9 @@
-use crate::api::{CertificatePathValidation, PathValidator};
-use crate::provided::validator::openssl::OpenSSLPathValidator;
-use crate::tests::material::{load_certificates, load_material};
 use openssl::x509::store::X509StoreBuilder;
 use openssl::x509::verify::X509VerifyFlags;
 use openssl::x509::X509;
+use x509_path_finder::api::{CertificatePathValidation, PathValidator};
+use x509_path_finder::provided::validator::openssl::OpenSSLPathValidator;
+use x509_path_finder_material::{load_certificates, load_material};
 
 #[tokio::test]
 async fn test_verifier() {

@@ -1,5 +1,3 @@
-use crate::api::Certificate;
-use std::fs::canonicalize;
 use std::io;
 use std::io::ErrorKind;
 use std::path::Path;
@@ -9,12 +7,10 @@ use url::Url;
 use x509_cert::Certificate as NativeCertificate;
 use x509_client::provided::default::DefaultX509Iterator;
 use x509_client::X509ClientConfiguration;
+use x509_path_finder::api::Certificate;
 
 pub async fn load_material(file: &str) -> io::Result<Vec<u8>> {
-    let path = Path::new(file!())
-        .parent()
-        .ok_or_else(|| io::Error::new(ErrorKind::Other, "invalid path"))?
-        .join(file);
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(file);
     let mut file = File::open(path).await?;
     let mut data = vec![];
     file.read_to_end(&mut data).await?;
@@ -22,11 +18,7 @@ pub async fn load_material(file: &str) -> io::Result<Vec<u8>> {
 }
 
 pub async fn load_native_certificates(file: &str) -> io::Result<Vec<NativeCertificate>> {
-    let path = Path::new(file!())
-        .parent()
-        .ok_or_else(|| io::Error::new(ErrorKind::Other, "invalid path"))?
-        .join(file);
-    let path = canonicalize(path)?;
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(file);
     let url =
         Url::from_file_path(&path).map_err(|_| io::Error::new(ErrorKind::Other, "invalid path"))?;
     let client = x509_client::X509Client::<DefaultX509Iterator>::new(X509ClientConfiguration {

@@ -1,8 +1,7 @@
-use crate::api::{CertificatePathValidation, PathValidator};
-use crate::provided::validator::default::DefaultPathValidator;
-use crate::tests::material::load_certificates;
-use crate::tests::material::load_material;
 use rustls::{Certificate as RustlsCertificate, RootCertStore};
+use x509_path_finder::api::{CertificatePathValidation, PathValidator};
+use x509_path_finder::provided::validator::default::DefaultPathValidator;
+use x509_path_finder_material::{load_certificates, load_material};
 
 #[tokio::test]
 async fn test_verifier() {
