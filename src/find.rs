@@ -13,7 +13,7 @@ use {
 
 use crate::api::{Certificate, CertificatePathValidation, CertificateStore, PathValidator};
 use crate::edge::{Edge, EdgeDisposition, Edges};
-use crate::report::{CertificateOrigin, Found, Report};
+use crate::report::{CertificateOrigin, Found, Report, ValidationFailure};
 use crate::{X509PathFinderError, X509PathFinderResult};
 
 /// [`X509PathFinder`](crate::X509PathFinder) configuration
@@ -77,9 +77,12 @@ where
                             failures,
                         });
                     }
-                    CertificatePathValidation::NotFound(mut v) => {
-                        v.origin = origin;
-                        failures.push(v);
+                    CertificatePathValidation::NotFound(reason) => {
+                        failures.push(ValidationFailure {
+                            path,
+                            origin,
+                            reason,
+                        });
                     }
                 }
             }
