@@ -48,7 +48,10 @@ where
     X509PathFinderError: From<<V as PathValidator>::PathValidatorError>,
 {
     /// Instantiate new X509PathFinder with configuration
-    pub fn new(config: X509PathFinderConfiguration<V>, certificates: Vec<Certificate>) -> Self {
+    pub fn new<I: IntoIterator<Item = Certificate>>(
+        config: X509PathFinderConfiguration<V>,
+        certificates: I,
+    ) -> Self {
         X509PathFinder {
             config,
             store: DefaultCertificateStore::from_iter(certificates),
