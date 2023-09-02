@@ -1,6 +1,5 @@
-use crate::api::{
-    Certificate, CertificatePathValidation, PathValidator, PathValidatorError, ValidationFailure,
-};
+use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
+use crate::report::ValidationFailure;
 use crate::X509PathFinderError;
 
 pub struct TestPathValidator {
@@ -24,6 +23,7 @@ impl PathValidator for TestPathValidator {
         if path.is_empty() {
             return Ok(CertificatePathValidation::NotFound(ValidationFailure {
                 path,
+                origin: vec![],
                 reason: "path is empty".to_string(),
             }));
         }
@@ -38,6 +38,7 @@ impl PathValidator for TestPathValidator {
 
         Ok(CertificatePathValidation::NotFound(ValidationFailure {
             path,
+            origin: vec![],
             reason: "could not find trusted path".to_string(),
         }))
     }

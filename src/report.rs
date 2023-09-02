@@ -1,6 +1,6 @@
 //! Certificate path search report
 
-use crate::api::{Certificate, ValidationFailure};
+use crate::api::Certificate;
 use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
@@ -34,4 +34,15 @@ pub enum CertificateOrigin {
     Store,
     /// Certificate downloaded from AIA url
     Url(Arc<Url>),
+}
+
+/// Validation Failure
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ValidationFailure {
+    /// Path where validation failure occurred
+    pub path: Vec<Certificate>,
+    /// Path origins where validation failure occurred
+    pub origin: Vec<CertificateOrigin>,
+    /// Human-readable reason for validation failure
+    pub reason: String,
 }

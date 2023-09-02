@@ -77,7 +77,8 @@ where
                             failures,
                         });
                     }
-                    CertificatePathValidation::NotFound(v) => {
+                    CertificatePathValidation::NotFound(mut v) => {
+                        v.origin = origin;
                         failures.push(v);
                     }
                 }

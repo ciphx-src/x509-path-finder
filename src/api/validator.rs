@@ -1,4 +1,5 @@
 use crate::api::Certificate;
+use crate::report::ValidationFailure;
 use std::fmt::{Debug, Display};
 
 /// Certificate path validation. Implement to customize behavior. Note: X509 certificate [path validation](https://datatracker.ietf.org/doc/html/rfc5280#section-6) is not
@@ -21,15 +22,6 @@ pub enum CertificatePathValidation {
     Found,
     /// Valid path not found
     NotFound(ValidationFailure),
-}
-
-/// Validation Failure
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ValidationFailure {
-    /// Path where validation failure occurred
-    pub path: Vec<Certificate>,
-    /// Human-readable reason for validation failure
-    pub reason: String,
 }
 
 /// Error trait
