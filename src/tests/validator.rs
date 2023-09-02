@@ -1,47 +1,42 @@
-use crate::api::Certificate;
-use crate::api::{CertificatePathValidation, PathValidator, PathValidatorError};
-use crate::report::{CertificatePath, ValidateFailure};
-use crate::tests::test_certificate::certificate::TestCertificate;
+use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
+use crate::report::ValidateFailure;
 use crate::X509PathFinderError;
 
-pub struct TestPathValidator<'r> {
-    roots: Vec<TestCertificate<'r>>,
+pub struct TestPathValidator {
+    roots: Vec<Certificate>,
 }
-impl<'r> TestPathValidator<'r> {
-    pub fn new<I: Into<TestCertificate<'r>>>(roots: Vec<I>) -> Self {
+impl TestPathValidator {
+    pub fn new<I: Into<Certificate>>(roots: Vec<I>) -> Self {
         Self {
             roots: roots.into_iter().map(|c| c.into()).collect(),
         }
     }
 }
 
-impl<'r> PathValidator<'r> for TestPathValidator<'r> {
-    type Certificate = TestCertificate<'r>;
+impl PathValidator for TestPathValidator {
     type PathValidatorError = X509PathFinderError;
 
     fn validate(
         &self,
-        path: Vec<Self::Certificate>,
-    ) -> Result<CertificatePathValidation<'r, Self::Certificate>, Self::PathValidatorError> {
-        let leaf = match path.last() {
-            None => {
-                return Ok(CertificatePathValidation::NotFound(ValidateFailure {
-                    path: CertificatePath::from_iter(path),
-                    reason: "path is empty".to_string(),
-                }))
-            }
-            Some(v) => v,
-        };
+        path: Vec<Certificate>,
+    ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
+        if path.is_empty() {
+            return Ok(CertificatePathValidation::NotFound(ValidateFailure {
+                path,
+                reason: "path is empty".to_string(),
+            }));
+        }
+
+        let ic = path.last().unwrap();
 
         for root in &self.roots {
-            if root.issued(leaf).unwrap() {
-                return Ok(CertificatePathValidation::Found(
-                    CertificatePath::from_iter(path),
-                ));
+            if root.issued(ic) {
+                return Ok(CertificatePathValidation::Found(path));
             }
         }
+
         Ok(CertificatePathValidation::NotFound(ValidateFailure {
-            path: CertificatePath::from_iter(path),
+            path,
             reason: "could not find trusted path".to_string(),
         }))
     }

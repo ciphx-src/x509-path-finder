@@ -5,8 +5,12 @@ use std::time::{Duration, Instant};
 use std::vec;
 
 use url::Url;
-use x509_client::provided::default::DefaultX509Iterator;
-use x509_client::{X509Client, X509ClientResult};
+
+#[cfg(not(test))]
+use {
+    x509_client::provided::default::DefaultX509Iterator,
+    x509_client::{X509Client, X509ClientResult},
+};
 
 use crate::api::{Certificate, CertificatePathValidation, CertificateStore, PathValidator};
 use crate::edge::{Edge, EdgeDisposition, Edges};
@@ -22,7 +26,10 @@ where
     /// limit runtime of path search. Actual limit will be N * HTTP timeout. See `Reqwest` docs for setting HTTP connection timeout.
     pub limit: Duration,
     /// Optional client to find additional certificates by parsing URLs from [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extensions
+    #[cfg(not(test))]
     pub aia: Option<X509Client<DefaultX509Iterator>>,
+    #[cfg(test)]
+    pub aia: Option<()>,
     /// [`CertificateStore`](crate::api::CertificateStore) implementation
     pub store: Arc<RwLock<S>>,
     /// [`PathValidator`](crate::api::PathValidator) implementation
@@ -265,7 +272,9 @@ where
     }
 
     #[cfg(test)]
-    async fn get_all(&self, _: &Url) -> X509ClientResult<Vec<Certificate>> {
-        Ok(vec![])
+    async fn get_all(&self, url: &Url) -> X509PathFinderResult<Vec<Certificate>> {
+        Ok(vec![url.try_into().map_err(|_| {
+            X509PathFinderError::Error("failure parsing test certificate into string".to_string())
+        })?])
     }
 }

@@ -1,11 +1,9 @@
-use crate::api::CertificateStore;
+use crate::api::{Certificate, TestCertificateInner};
 use crate::provided::store::DefaultCertificateStore;
 use crate::report::CertificateOrigin;
-use crate::tests::test_certificate::certificate::TestCertificateNative;
-use crate::tests::test_certificate::iter::TestCertificateIterator;
 use crate::tests::validator::TestPathValidator;
-use crate::{NoAIA, X509PathFinder, X509PathFinderConfiguration, AIA};
-use std::marker::PhantomData;
+use crate::{X509PathFinder, X509PathFinderConfiguration};
+use std::sync::RwLock;
 use std::time::Duration;
 
 #[tokio::test]
@@ -14,20 +12,26 @@ async fn test_first_path_found_no_aia() {
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
-        aia: AIA::None(NoAIA::default()),
-        store,
-        validator: TestPathValidator::new(vec![TestCertificateNative {
-            issuer: 0,
-            subject: 0,
-            aia: vec![],
+        aia: None,
+        store: RwLock::new(store).into(),
+        validator: TestPathValidator::new(vec![Certificate {
+            inner: TestCertificateInner {
+                issuer: 0,
+                subject: 0,
+                aia: vec![],
+            },
+            ord: 0,
         }]),
     });
 
     let report = search
-        .find(TestCertificateNative {
-            issuer: 3,
-            subject: 4,
-            aia: vec![],
+        .find(Certificate {
+            inner: TestCertificateInner {
+                issuer: 3,
+                subject: 4,
+                aia: vec![],
+            },
+            ord: 0,
         })
         .await
         .unwrap();
@@ -36,28 +40,40 @@ async fn test_first_path_found_no_aia() {
         .path
         .unwrap()
         .into_iter()
-        .collect::<Vec<TestCertificateNative>>();
+        .collect::<Vec<Certificate>>();
 
     let expected_path = vec![
-        TestCertificateNative {
-            issuer: 3,
-            subject: 4,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 3,
+                subject: 4,
+                aia: vec![],
+            },
+            ord: 0,
         },
-        TestCertificateNative {
-            issuer: 2,
-            subject: 3,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 2,
+                subject: 3,
+                aia: vec![],
+            },
+            ord: 0,
         },
-        TestCertificateNative {
-            issuer: 1,
-            subject: 2,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 1,
+                subject: 2,
+                aia: vec![],
+            },
+            ord: 0,
         },
-        TestCertificateNative {
-            issuer: 0,
-            subject: 1,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 0,
+                subject: 1,
+                aia: vec![],
+            },
+            ord: 0,
         },
     ];
 
@@ -77,24 +93,28 @@ async fn test_first_path_found_no_aia() {
 async fn test_first_path_end_no_aia() {
     let store = DefaultCertificateStore::from_iter(build_certificates());
 
-    let validator = TestPathValidator::new(vec![TestCertificateNative {
-        issuer: 100,
-        subject: 100,
-        aia: vec![],
-    }]);
-
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
-        aia: AIA::None(NoAIA::default()),
-        store,
-        validator,
+        aia: None,
+        store: RwLock::new(store).into(),
+        validator: TestPathValidator::new(vec![Certificate {
+            inner: TestCertificateInner {
+                issuer: 100,
+                subject: 100,
+                aia: vec![],
+            },
+            ord: 0,
+        }]),
     });
 
     let report = search
-        .find(TestCertificateNative {
-            issuer: 3,
-            subject: 4,
-            aia: vec![],
+        .find(Certificate {
+            inner: TestCertificateInner {
+                issuer: 3,
+                subject: 4,
+                aia: vec![],
+            },
+            ord: 0,
         })
         .await
         .unwrap();
@@ -103,18 +123,24 @@ async fn test_first_path_end_no_aia() {
         .path
         .unwrap()
         .into_iter()
-        .collect::<Vec<TestCertificateNative>>();
+        .collect::<Vec<Certificate>>();
 
     let expected_path = vec![
-        TestCertificateNative {
-            issuer: 3,
-            subject: 4,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 3,
+                subject: 4,
+                aia: vec![],
+            },
+            ord: 0,
         },
-        TestCertificateNative {
-            issuer: 100,
-            subject: 3,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 100,
+                subject: 3,
+                aia: vec![],
+            },
+            ord: 0,
         },
     ];
 
@@ -125,27 +151,39 @@ async fn test_first_path_end_no_aia() {
     );
 }
 
-fn build_certificates() -> Vec<TestCertificateNative> {
+fn build_certificates() -> Vec<Certificate> {
     vec![
-        TestCertificateNative {
-            issuer: 0,
-            subject: 1,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 0,
+                subject: 1,
+                aia: vec![],
+            },
+            ord: 0,
         },
-        TestCertificateNative {
-            issuer: 1,
-            subject: 2,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 1,
+                subject: 2,
+                aia: vec![],
+            },
+            ord: 0,
         },
-        TestCertificateNative {
-            issuer: 2,
-            subject: 3,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 2,
+                subject: 3,
+                aia: vec![],
+            },
+            ord: 0,
         },
-        TestCertificateNative {
-            issuer: 100,
-            subject: 3,
-            aia: vec![],
+        Certificate {
+            inner: TestCertificateInner {
+                issuer: 100,
+                subject: 3,
+                aia: vec![],
+            },
+            ord: 0,
         },
     ]
 }
@@ -154,60 +192,76 @@ fn build_certificates() -> Vec<TestCertificateNative> {
 async fn test_only_aia() {
     let store = DefaultCertificateStore::default();
 
-    let root = TestCertificateNative {
-        issuer: 0,
-        subject: 0,
-        aia: vec![],
+    let root = Certificate {
+        inner: TestCertificateInner {
+            issuer: 0,
+            subject: 0,
+            aia: vec![],
+        },
+        ord: 0,
     };
 
-    let c1 = TestCertificateNative {
-        issuer: 0,
-        subject: 1,
-        aia: vec![],
+    let c1 = Certificate {
+        inner: TestCertificateInner {
+            issuer: 0,
+            subject: 1,
+            aia: vec![],
+        },
+        ord: 0,
     };
 
-    let mut c2 = TestCertificateNative {
-        issuer: 1,
-        subject: 2,
-        aia: vec![],
-    };
-    let mut c3 = TestCertificateNative {
-        issuer: 2,
-        subject: 3,
-        aia: vec![],
-    };
-    let mut c4 = TestCertificateNative {
-        issuer: 3,
-        subject: 4,
-        aia: vec![],
+    let mut c2 = Certificate {
+        inner: TestCertificateInner {
+            issuer: 1,
+            subject: 2,
+            aia: vec![],
+        },
+        ord: 0,
     };
 
-    c2.aia.push((&c1).try_into().unwrap());
-    c3.aia.push((&c2).try_into().unwrap());
-    c4.aia.push((&c3).try_into().unwrap());
+    let mut c3 = Certificate {
+        inner: TestCertificateInner {
+            issuer: 2,
+            subject: 3,
+            aia: vec![],
+        },
+        ord: 0,
+    };
+    let mut c4 = Certificate {
+        inner: TestCertificateInner {
+            issuer: 3,
+            subject: 4,
+            aia: vec![],
+        },
+        ord: 0,
+    };
+
+    c2.inner.aia.push((&c1).try_into().unwrap());
+    c3.inner.aia.push((&c2).try_into().unwrap());
+    c4.inner.aia.push((&c3).try_into().unwrap());
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
-        aia: AIA::Client(PhantomData::<TestCertificateIterator>),
-        store,
-        validator: TestPathValidator::new(vec![&root]),
+        aia: Some(()),
+        store: RwLock::new(store).into(),
+        validator: TestPathValidator::new(vec![root]),
     });
 
-    let report = search.find(&c4).await.unwrap();
+    let report = search.find(c4.clone()).await.unwrap();
 
     let path = report
         .path
         .unwrap()
         .into_iter()
-        .collect::<Vec<TestCertificateNative>>();
+        .collect::<Vec<Certificate>>();
 
     assert_eq!(vec![c4.clone(), c3.clone(), c2.clone(), c1.clone()], path);
     assert_eq!(
         vec![
             CertificateOrigin::Find,
-            CertificateOrigin::Url(c4.aia[0].clone().into()),
-            CertificateOrigin::Url(c3.aia[0].clone().into()),
-            CertificateOrigin::Url(c2.aia[0].clone().into())
+            CertificateOrigin::Url(c4.inner.aia[0].clone().into()),
+            CertificateOrigin::Url(c3.inner.aia[0].clone().into()),
+            CertificateOrigin::Url(c2.inner.aia[0].clone().into())
         ],
         report.origin.unwrap()
     );
@@ -217,54 +271,77 @@ async fn test_only_aia() {
 async fn test_bridge_aia() {
     let store = DefaultCertificateStore::default();
 
-    let root = TestCertificateNative {
-        issuer: 0,
-        subject: 0,
-        aia: vec![],
+    let root = Certificate {
+        inner: TestCertificateInner {
+            issuer: 0,
+            subject: 0,
+            aia: vec![],
+        },
+        ord: 0,
     };
 
-    let c1 = TestCertificateNative {
-        issuer: 0,
-        subject: 1,
-        aia: vec![],
+    let c1 = Certificate {
+        inner: TestCertificateInner {
+            issuer: 0,
+            subject: 1,
+            aia: vec![],
+        },
+        ord: 0,
     };
 
-    let mut c2 = TestCertificateNative {
-        issuer: 1,
-        subject: 2,
-        aia: vec![],
-    };
-    let mut c3 = TestCertificateNative {
-        issuer: 2,
-        subject: 3,
-        aia: vec![],
-    };
-    let mut c4 = TestCertificateNative {
-        issuer: 3,
-        subject: 4,
-        aia: vec![],
+    let mut c2 = Certificate {
+        inner: TestCertificateInner {
+            issuer: 1,
+            subject: 2,
+            aia: vec![],
+        },
+        ord: 0,
     };
 
-    c2.aia.push((&c1).try_into().unwrap());
-    c3.aia.push((&c2).try_into().unwrap());
-    c4.aia.push((&c3).try_into().unwrap());
-
-    let bridge_authority = TestCertificateNative {
-        issuer: 100,
-        subject: 100,
-        aia: vec![],
+    let mut c3 = Certificate {
+        inner: TestCertificateInner {
+            issuer: 2,
+            subject: 3,
+            aia: vec![],
+        },
+        ord: 0,
     };
 
-    let bridge = TestCertificateNative {
-        issuer: 100,
-        subject: 3,
-        aia: vec![],
+    let mut c4 = Certificate {
+        inner: TestCertificateInner {
+            issuer: 3,
+            subject: 4,
+            aia: vec![],
+        },
+        ord: 0,
+    };
+
+    c2.inner.aia.push((&c1).try_into().unwrap());
+    c3.inner.aia.push((&c2).try_into().unwrap());
+    c4.inner.aia.push((&c3).try_into().unwrap());
+
+    let bridge_authority = Certificate {
+        inner: TestCertificateInner {
+            issuer: 100,
+            subject: 100,
+            aia: vec![],
+        },
+        ord: 0,
+    };
+
+    let bridge = Certificate {
+        inner: TestCertificateInner {
+            issuer: 100,
+            subject: 3,
+            aia: vec![],
+        },
+        ord: 0,
     };
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Default::default(),
-        aia: AIA::Client(PhantomData::<TestCertificateIterator>),
-        store: store.clone(),
+        aia: Some(()),
+        store: RwLock::new(store).into(),
         validator: TestPathValidator::new(vec![root.clone()]),
     });
 
@@ -274,16 +351,16 @@ async fn test_bridge_aia() {
         .path
         .unwrap()
         .into_iter()
-        .collect::<Vec<TestCertificateNative>>();
+        .collect::<Vec<Certificate>>();
 
     assert_eq!(vec![c4.clone(), c3.clone(), c2.clone(), c1.clone()], path);
 
     assert_eq!(
         vec![
             CertificateOrigin::Find,
-            CertificateOrigin::Url(c4.aia[0].clone().into()),
-            CertificateOrigin::Url(c3.aia[0].clone().into()),
-            CertificateOrigin::Url(c2.aia[0].clone().into())
+            CertificateOrigin::Url(c4.inner.aia[0].clone().into()),
+            CertificateOrigin::Url(c3.inner.aia[0].clone().into()),
+            CertificateOrigin::Url(c2.inner.aia[0].clone().into())
         ],
         report.origin.unwrap()
     );
@@ -292,8 +369,8 @@ async fn test_bridge_aia() {
 
     let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Default::default(),
-        aia: AIA::Client(PhantomData::<TestCertificateIterator>),
-        store: store.clone(),
+        aia: Some(()),
+        store: RwLock::new(store).into(),
         validator: TestPathValidator::new(vec![bridge_authority]),
     });
 
@@ -303,7 +380,7 @@ async fn test_bridge_aia() {
         .path
         .unwrap()
         .into_iter()
-        .collect::<Vec<TestCertificateNative>>();
+        .collect::<Vec<Certificate>>();
 
     assert_eq!(vec![c4, bridge], path);
     assert_eq!(
