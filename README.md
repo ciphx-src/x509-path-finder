@@ -137,7 +137,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 #### CertificateOrigin
 [`CertificateOrigin`](crate::report::CertificateOrigin) is an enum that describes the origin of each certificate. Can be one of:
 
-1. `Find`: the initial certificate when calling [`X509PathFinder::find`](crate::X509PathFinder::find).
+1. `Target`: the initial certificate when calling [`X509PathFinder::find`](crate::X509PathFinder::find).
 2. `Store`: certificate was found in the store
 3. `Url`: certificate was downloaded from a URL (AIA)
 

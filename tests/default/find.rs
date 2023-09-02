@@ -32,13 +32,16 @@ async fn test_find() {
         validator,
     });
 
-    let report = search.find(certificates[0].clone()).await.unwrap();
+    let found = search
+        .find(certificates[0].clone())
+        .await
+        .unwrap()
+        .found
+        .unwrap();
 
-    let path = report.path.unwrap().into_iter();
-
-    assert_eq!(2, path.len());
+    assert_eq!(2, found.path.len());
     assert_eq!(
-        vec![CertificateOrigin::Find, CertificateOrigin::Store],
-        report.origin.unwrap()
+        vec![CertificateOrigin::Target, CertificateOrigin::Store],
+        found.origin
     );
 }

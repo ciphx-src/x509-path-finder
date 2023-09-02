@@ -36,11 +36,7 @@ async fn test_first_path_found_no_aia() {
         .await
         .unwrap();
 
-    let path = report
-        .path
-        .unwrap()
-        .into_iter()
-        .collect::<Vec<Certificate>>();
+    let found = report.found.unwrap();
 
     let expected_path = vec![
         Certificate {
@@ -77,15 +73,15 @@ async fn test_first_path_found_no_aia() {
         },
     ];
 
-    assert_eq!(expected_path, path);
+    assert_eq!(expected_path, found.path);
     assert_eq!(
         vec![
-            CertificateOrigin::Find,
+            CertificateOrigin::Target,
             CertificateOrigin::Store,
             CertificateOrigin::Store,
             CertificateOrigin::Store,
         ],
-        report.origin.unwrap()
+        found.origin
     );
 }
 
@@ -119,11 +115,7 @@ async fn test_first_path_end_no_aia() {
         .await
         .unwrap();
 
-    let path = report
-        .path
-        .unwrap()
-        .into_iter()
-        .collect::<Vec<Certificate>>();
+    let found = report.found.unwrap();
 
     let expected_path = vec![
         Certificate {
@@ -144,10 +136,10 @@ async fn test_first_path_end_no_aia() {
         },
     ];
 
-    assert_eq!(expected_path, path);
+    assert_eq!(expected_path, found.path);
     assert_eq!(
-        vec![CertificateOrigin::Find, CertificateOrigin::Store,],
-        report.origin.unwrap()
+        vec![CertificateOrigin::Target, CertificateOrigin::Store,],
+        found.origin
     );
 }
 
@@ -249,21 +241,20 @@ async fn test_only_aia() {
 
     let report = search.find(c4.clone()).await.unwrap();
 
-    let path = report
-        .path
-        .unwrap()
-        .into_iter()
-        .collect::<Vec<Certificate>>();
+    let found = report.found.unwrap();
 
-    assert_eq!(vec![c4.clone(), c3.clone(), c2.clone(), c1.clone()], path);
+    assert_eq!(
+        vec![c4.clone(), c3.clone(), c2.clone(), c1.clone()],
+        found.path
+    );
     assert_eq!(
         vec![
-            CertificateOrigin::Find,
+            CertificateOrigin::Target,
             CertificateOrigin::Url(c4.inner.aia[0].clone().into()),
             CertificateOrigin::Url(c3.inner.aia[0].clone().into()),
             CertificateOrigin::Url(c2.inner.aia[0].clone().into())
         ],
-        report.origin.unwrap()
+        found.origin
     );
 }
 
@@ -347,22 +338,21 @@ async fn test_bridge_aia() {
 
     let report = search.find(c4.clone()).await.unwrap();
 
-    let path = report
-        .path
-        .unwrap()
-        .into_iter()
-        .collect::<Vec<Certificate>>();
+    let found = report.found.unwrap();
 
-    assert_eq!(vec![c4.clone(), c3.clone(), c2.clone(), c1.clone()], path);
+    assert_eq!(
+        vec![c4.clone(), c3.clone(), c2.clone(), c1.clone()],
+        found.path
+    );
 
     assert_eq!(
         vec![
-            CertificateOrigin::Find,
+            CertificateOrigin::Target,
             CertificateOrigin::Url(c4.inner.aia[0].clone().into()),
             CertificateOrigin::Url(c3.inner.aia[0].clone().into()),
             CertificateOrigin::Url(c2.inner.aia[0].clone().into())
         ],
-        report.origin.unwrap()
+        found.origin
     );
 
     let store = DefaultCertificateStore::from_iter(vec![bridge.clone()]);
@@ -376,15 +366,11 @@ async fn test_bridge_aia() {
 
     let report = search.find(c4.clone()).await.unwrap();
 
-    let path = report
-        .path
-        .unwrap()
-        .into_iter()
-        .collect::<Vec<Certificate>>();
+    let found = report.found.unwrap();
 
-    assert_eq!(vec![c4, bridge], path);
+    assert_eq!(vec![c4, bridge], found.path);
     assert_eq!(
-        vec![CertificateOrigin::Find, CertificateOrigin::Store],
-        report.origin.unwrap()
+        vec![CertificateOrigin::Target, CertificateOrigin::Store],
+        found.origin
     );
 }

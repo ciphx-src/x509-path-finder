@@ -29,7 +29,7 @@ impl Edges {
             parents: HashMap::new(),
             edges: vec![Edge::new(
                 0,
-                EdgeDisposition::Certificate(certificate, CertificateOrigin::Find),
+                EdgeDisposition::Certificate(certificate, CertificateOrigin::Target),
             )],
         }
     }

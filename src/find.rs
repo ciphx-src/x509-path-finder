@@ -13,7 +13,7 @@ use {
 
 use crate::api::{Certificate, CertificatePathValidation, CertificateStore, PathValidator};
 use crate::edge::{Edge, EdgeDisposition, Edges};
-use crate::report::{CertificateOrigin, Report};
+use crate::report::{CertificateOrigin, Found, Report};
 use crate::{X509PathFinderError, X509PathFinderResult};
 
 /// [`X509PathFinder`](crate::X509PathFinder) configuration
@@ -56,8 +56,8 @@ where
     }
 
     /// Find certificate path, returning [`Report`](crate::report::Report)
-    pub async fn find(&mut self, certificate: Certificate) -> X509PathFinderResult<Report> {
-        let mut edges = Edges::new(certificate);
+    pub async fn find(&mut self, target: Certificate) -> X509PathFinderResult<Report> {
+        let mut edges = Edges::new(target);
 
         let start = Instant::now();
 
@@ -72,8 +72,7 @@ where
                 match self.config.validator.validate(path.clone())? {
                     CertificatePathValidation::Found => {
                         return Ok(Report {
-                            path: Some(path),
-                            origin: Some(origin),
+                            found: Some(Found { path, origin }),
                             duration: Instant::now() - start,
                             failures,
                         });
@@ -96,8 +95,7 @@ where
         }
 
         Ok(Report {
-            path: None,
-            origin: None,
+            found: None,
             duration: Instant::now() - start,
             failures,
         })

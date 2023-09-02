@@ -15,11 +15,21 @@ pub trait PathValidator {
 }
 
 /// Result of [`validate`](crate::api::validator::PathValidator::validate)
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum CertificatePathValidation {
     /// Valid path found
     Found,
     /// Valid path not found
-    NotFound(String),
+    NotFound(ValidationFailure),
+}
+
+/// Validation Failure
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ValidationFailure {
+    /// Path where validation failure occurred
+    pub path: Vec<Certificate>,
+    /// Human-readable reason for validation failure
+    pub reason: String,
 }
 
 /// Error trait

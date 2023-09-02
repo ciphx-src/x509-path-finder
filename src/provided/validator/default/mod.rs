@@ -2,7 +2,9 @@
 
 pub mod result;
 
-use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
+use crate::api::{
+    Certificate, CertificatePathValidation, PathValidator, PathValidatorError, ValidationFailure,
+};
 use crate::provided::validator::default::result::DefaultPathValidatorError;
 use der::Encode;
 use rustls::server::ParsedCertificate;
@@ -28,9 +30,10 @@ impl PathValidator for DefaultPathValidator {
         path: Vec<Certificate>,
     ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
-            return Ok(CertificatePathValidation::NotFound(
-                "path is empty".to_string(),
-            ));
+            return Ok(CertificatePathValidation::NotFound(ValidationFailure {
+                path,
+                reason: "path is empty".to_string(),
+            }));
         }
 
         let mut rustls_path: Vec<RustlsCertificate> = vec![];
@@ -46,7 +49,10 @@ impl PathValidator for DefaultPathValidator {
         ) {
             Ok(_) => Ok(CertificatePathValidation::Found),
 
-            Err(f) => Ok(CertificatePathValidation::NotFound(f.to_string())),
+            Err(f) => Ok(CertificatePathValidation::NotFound(ValidationFailure {
+                path,
+                reason: f.to_string(),
+            })),
         }
     }
 }
