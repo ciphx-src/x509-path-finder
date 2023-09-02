@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::api::Certificate;
@@ -16,6 +17,7 @@ pub enum EdgeDisposition {
 pub struct Edges {
     serial: usize,
     visited: HashSet<usize>,
+    parents: HashMap<Edge, Edge>,
     edges: Vec<Edge>,
 }
 
@@ -24,9 +26,9 @@ impl Edges {
         Self {
             serial: 0,
             visited: HashSet::new(),
+            parents: HashMap::new(),
             edges: vec![Edge::new(
                 0,
-                None,
                 EdgeDisposition::Certificate(certificate, CertificateOrigin::Find),
             )],
         }
@@ -36,35 +38,49 @@ impl Edges {
         self.edges.pop()
     }
 
-    pub fn extend<I: IntoIterator<Item = Edge>>(&mut self, edges: I) {
+    pub fn extend(&mut self, parent: Edge, edges: Vec<Edge>) {
+        for child in edges.clone().into_iter() {
+            self.parents.insert(child, parent.clone());
+        }
         self.edges.extend(edges)
+    }
+
+    pub fn path(&self, target: &Edge) -> (Vec<Certificate>, Vec<CertificateOrigin>) {
+        let mut path = vec![];
+        let mut path_origin = vec![];
+
+        let mut current_edge = Some(target);
+        while let Some(edge) = current_edge {
+            if let EdgeDisposition::Certificate(certificate, origin) = edge.disposition() {
+                path.push(certificate.clone());
+                path_origin.push(origin.clone());
+            }
+            current_edge = self.parents.get(edge);
+        }
+        path.reverse();
+        path_origin.reverse();
+        (path, path_origin)
     }
 
     pub fn edge_from_certificate(
         &mut self,
-        parent: Option<Edge>,
         certificate: Certificate,
         origin: CertificateOrigin,
     ) -> Edge {
         self.serial += 1;
         Edge::new(
             self.serial,
-            parent,
             EdgeDisposition::Certificate(certificate, origin),
         )
     }
-    pub fn edge_from_url(&mut self, parent: Option<Edge>, url: Url, holder: Certificate) -> Edge {
+    pub fn edge_from_url(&mut self, url: Url, holder: Certificate) -> Edge {
         self.serial += 1;
-        Edge::new(
-            self.serial,
-            parent,
-            EdgeDisposition::Url(url.into(), holder),
-        )
+        Edge::new(self.serial, EdgeDisposition::Url(url.into(), holder))
     }
 
-    pub fn edge_from_end(&mut self, parent: Option<Edge>) -> Edge {
+    pub fn edge_from_end(&mut self) -> Edge {
         self.serial += 1;
-        Edge::new(self.serial, parent, EdgeDisposition::End)
+        Edge::new(self.serial, EdgeDisposition::End)
     }
 
     pub fn visit(&mut self, edge: &Edge) {
@@ -78,22 +94,16 @@ impl Edges {
 
 #[derive(Clone)]
 pub struct Edge {
-    parent: Box<Option<Edge>>,
     disposition: EdgeDisposition,
     serial: usize,
 }
 
 impl Edge {
-    fn new(serial: usize, parent: Option<Edge>, disposition: EdgeDisposition) -> Self {
+    fn new(serial: usize, disposition: EdgeDisposition) -> Self {
         Self {
-            parent: parent.into(),
             disposition,
             serial,
         }
-    }
-
-    pub fn parent(&self) -> Option<Edge> {
-        self.parent.as_ref().clone()
     }
 
     pub fn end(&self) -> bool {
@@ -102,5 +112,19 @@ impl Edge {
 
     pub fn disposition(&self) -> &EdgeDisposition {
         &self.disposition
+    }
+}
+
+impl PartialEq for Edge {
+    fn eq(&self, other: &Self) -> bool {
+        self.serial == other.serial
+    }
+}
+
+impl Eq for Edge {}
+
+impl Hash for Edge {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.serial.hash(state)
     }
 }

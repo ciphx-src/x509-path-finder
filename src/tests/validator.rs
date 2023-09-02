@@ -1,5 +1,4 @@
 use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
-use crate::report::ValidateFailure;
 use crate::X509PathFinderError;
 
 pub struct TestPathValidator {
@@ -21,24 +20,22 @@ impl PathValidator for TestPathValidator {
         path: Vec<Certificate>,
     ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
-            return Ok(CertificatePathValidation::NotFound(ValidateFailure {
-                path,
-                reason: "path is empty".to_string(),
-            }));
+            return Ok(CertificatePathValidation::NotFound(
+                "path is empty".to_string(),
+            ));
         }
 
         let ic = path.last().unwrap();
 
         for root in &self.roots {
             if root.issued(ic) {
-                return Ok(CertificatePathValidation::Found(path));
+                return Ok(CertificatePathValidation::Found);
             }
         }
 
-        Ok(CertificatePathValidation::NotFound(ValidateFailure {
-            path,
-            reason: "could not find trusted path".to_string(),
-        }))
+        Ok(CertificatePathValidation::NotFound(
+            "could not find trusted path".to_string(),
+        ))
     }
 }
 

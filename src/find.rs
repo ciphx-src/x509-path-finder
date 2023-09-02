@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::iter::once;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
@@ -68,9 +67,10 @@ where
             if self.config.limit != Duration::ZERO && Instant::now() - start > self.config.limit {
                 return Err(X509PathFinderError::Error("limit exceeded".to_string()));
             }
-            if let Some((path, origin)) = self.validate(&edge).await? {
-                match path {
-                    CertificatePathValidation::Found(path) => {
+            if edge.end() {
+                let (path, origin) = edges.path(&edge);
+                match self.config.validator.validate(path.clone())? {
+                    CertificatePathValidation::Found => {
                         return Ok(Report {
                             path: Some(path),
                             origin: Some(origin),
@@ -78,8 +78,8 @@ where
                             failures,
                         });
                     }
-                    CertificatePathValidation::NotFound(f) => {
-                        failures.push(f);
+                    CertificatePathValidation::NotFound(v) => {
+                        failures.push(v);
                     }
                 }
             }
@@ -90,9 +90,9 @@ where
 
             edges.visit(&edge);
 
-            let next = self.next(&mut edges, edge).await?;
+            let next = self.next(&mut edges, &edge).await?;
 
-            edges.extend(next);
+            edges.extend(edge, next);
         }
 
         Ok(Report {
@@ -103,39 +103,11 @@ where
         })
     }
 
-    async fn validate(
-        &self,
-        edge: &Edge,
-    ) -> X509PathFinderResult<Option<(CertificatePathValidation, Vec<CertificateOrigin>)>> {
-        if !edge.end() {
-            return Ok(None);
-        }
-
-        let mut path = VecDeque::new();
-        let mut origin = VecDeque::new();
-
-        let mut next_parent = edge.parent();
-        while let Some(parent) = next_parent {
-            if let EdgeDisposition::Certificate(certificate, certificate_origin) =
-                &(parent.disposition())
-            {
-                path.push_front(certificate.clone());
-                origin.push_front(certificate_origin.clone());
-            }
-            next_parent = parent.parent();
-        }
-
-        Ok(Some((
-            self.config.validator.validate(path.into())?,
-            origin.into(),
-        )))
-    }
-
-    async fn next(&mut self, edges: &mut Edges, edge: Edge) -> X509PathFinderResult<Vec<Edge>> {
+    async fn next(&mut self, edges: &mut Edges, edge: &Edge) -> X509PathFinderResult<Vec<Edge>> {
         match edge.disposition() {
             // edge is leaf certificate, search for issuer candidates
             EdgeDisposition::Certificate(edge_certificate, _) => {
-                let mut store_candidates = self.next_store(edges, &edge, edge_certificate)?;
+                let mut store_candidates = self.next_store(edges, edge_certificate)?;
 
                 // return issuer candidates from store or try aia
                 if !store_candidates.is_empty() {
@@ -143,20 +115,18 @@ where
                     let aia_urls = edge_certificate.aia();
                     let mut aia_edges = aia_urls
                         .into_iter()
-                        .map(|u| {
-                            edges.edge_from_url(Some(edge.clone()), u, edge_certificate.clone())
-                        })
+                        .map(|u| edges.edge_from_url(u, edge_certificate.clone()))
                         .collect::<Vec<Edge>>();
                     store_candidates.append(&mut aia_edges);
                     Ok(store_candidates)
                 } else {
-                    Ok(self.next_aia(edges, &edge, edge_certificate))
+                    Ok(self.next_aia(edges, edge_certificate))
                 }
             }
             // edge is url, download certificates, search for issuer candidates
-            EdgeDisposition::Url(url, edge_certificate) => Ok(self
-                .next_url(edges, &edge, edge_certificate, url.clone())
-                .await?),
+            EdgeDisposition::Url(url, edge_certificate) => {
+                Ok(self.next_url(edges, edge_certificate, url.clone()).await?)
+            }
             // edge is end, stop search
             EdgeDisposition::End => Ok(vec![]),
         }
@@ -166,7 +136,6 @@ where
     fn next_store(
         &mut self,
         edges: &mut Edges,
-        parent_edge: &Edge,
         parent_certificate: &Certificate,
     ) -> X509PathFinderResult<Vec<Edge>> {
         let mut candidates = vec![];
@@ -174,16 +143,13 @@ where
             .config
             .store
             .read()
-            .unwrap()
+            .map_err(|e| X509PathFinderError::Error(e.to_string()))?
             .issuers(parent_certificate)
         {
             // filter out self-signed
             if !candidate.issued(candidate) {
-                candidates.push(edges.edge_from_certificate(
-                    Some(parent_edge.clone()),
-                    candidate.clone(),
-                    CertificateOrigin::Store,
-                ));
+                candidates
+                    .push(edges.edge_from_certificate(candidate.clone(), CertificateOrigin::Store));
             }
         }
         Ok(candidates)
@@ -193,7 +159,6 @@ where
     async fn next_url(
         &mut self,
         edges: &mut Edges,
-        parent_edge: &Edge,
         parent_certificate: &Certificate,
         url: Arc<Url>,
     ) -> X509PathFinderResult<Vec<Edge>> {
@@ -202,7 +167,7 @@ where
             self.config
                 .store
                 .write()
-                .unwrap()
+                .map_err(|e| X509PathFinderError::Error(e.to_string()))?
                 .extend(once(candidate.clone()));
 
             // filtering out self-signed
@@ -212,43 +177,36 @@ where
 
             // url is issuer, return as certificate edge
             if candidate.issued(parent_certificate) {
-                candidates.push(edges.edge_from_certificate(
-                    parent_edge.parent().clone(),
-                    candidate,
-                    CertificateOrigin::Url(url.clone()),
-                ));
+                candidates.push(
+                    edges.edge_from_certificate(candidate, CertificateOrigin::Url(url.clone())),
+                );
             }
         }
 
         // no issuer candidates, return end edge
         if candidates.is_empty() {
-            candidates.push(edges.edge_from_end(parent_edge.parent().clone()));
+            candidates.push(edges.edge_from_end());
         }
         Ok(candidates)
     }
 
     // if aia enabled, return aia edges
-    fn next_aia(
-        &mut self,
-        edges: &mut Edges,
-        parent_edge: &Edge,
-        parent_certificate: &Certificate,
-    ) -> Vec<Edge> {
+    fn next_aia(&mut self, edges: &mut Edges, parent_certificate: &Certificate) -> Vec<Edge> {
         // aia disabled, return end edge
         if self.config.aia.is_none() {
-            return vec![edges.edge_from_end(Some(parent_edge.clone()))];
+            return vec![edges.edge_from_end()];
         }
 
         let aia_urls = parent_certificate.aia();
 
         // no aia urls found, return end edge
         if aia_urls.is_empty() {
-            return vec![edges.edge_from_end(Some(parent_edge.clone()))];
+            return vec![edges.edge_from_end()];
         }
 
         aia_urls
             .into_iter()
-            .map(|u| edges.edge_from_url(Some(parent_edge.clone()), u, parent_certificate.clone()))
+            .map(|u| edges.edge_from_url(u, parent_certificate.clone()))
             .collect()
     }
 

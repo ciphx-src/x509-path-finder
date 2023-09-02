@@ -4,7 +4,6 @@ pub mod result;
 
 use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
 use crate::provided::validator::openssl::result::OpenSSLPathValidatorError;
-use crate::report::ValidateFailure;
 use der::Encode;
 use openssl::stack::Stack;
 use openssl::x509::store::X509Store;
@@ -29,10 +28,9 @@ impl PathValidator for OpenSSLPathValidator {
         path: Vec<Certificate>,
     ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
-            return Ok(CertificatePathValidation::NotFound(ValidateFailure {
-                path,
-                reason: "path is empty".to_string(),
-            }));
+            return Ok(CertificatePathValidation::NotFound(
+                "path is empty".to_string(),
+            ));
         }
 
         let mut openssl_path = Stack::new()?;
@@ -54,12 +52,11 @@ impl PathValidator for OpenSSLPathValidator {
         )?;
 
         match verified {
-            VerifyResult::Success => Ok(CertificatePathValidation::Found(path)),
+            VerifyResult::Success => Ok(CertificatePathValidation::Found),
 
-            VerifyResult::Failure(f) => Ok(CertificatePathValidation::NotFound(ValidateFailure {
-                path,
-                reason: f.error_string().to_string(),
-            })),
+            VerifyResult::Failure(f) => Ok(CertificatePathValidation::NotFound(
+                f.error_string().to_string(),
+            )),
         }
     }
 }

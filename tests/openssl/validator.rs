@@ -22,11 +22,6 @@ async fn test_verifier() {
     builder.set_flags(X509VerifyFlags::X509_STRICT).unwrap();
 
     let verifier = OpenSSLPathValidator::new(builder.build());
-    let path = verifier.validate(certificates).unwrap();
-
-    if let CertificatePathValidation::Found(path) = path {
-        assert_eq!(2, path.len());
-    } else {
-        panic!("validate failed")
-    }
+    let validate = verifier.validate(certificates).unwrap();
+    assert!(matches!(validate, CertificatePathValidation::Found));
 }

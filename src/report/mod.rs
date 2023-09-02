@@ -15,16 +15,7 @@ pub struct Report {
     /// Duration of path search
     pub duration: Duration,
     /// Any validation failures reported by [`PathValidator`](crate::api::PathValidator)
-    pub failures: Vec<ValidateFailure>,
-}
-
-/// Validation failures
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct ValidateFailure {
-    /// Certificate path of failed validation attempt
-    pub path: Vec<Certificate>,
-    /// Human-readable reason for validation failure
-    pub reason: String,
+    pub failures: Vec<String>,
 }
 
 /// Origins of each certificate found in path
