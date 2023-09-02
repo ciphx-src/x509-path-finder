@@ -19,6 +19,6 @@ async fn test_verifier() {
     store.add(&root).unwrap();
 
     let verifier = DefaultPathValidator::new(store);
-    let validate = verifier.validate(certificates).unwrap();
+    let validate = verifier.validate(certificates.as_slice()).unwrap();
     assert!(matches!(validate, CertificatePathValidation::Found));
 }

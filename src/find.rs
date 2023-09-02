@@ -69,7 +69,7 @@ where
             }
             if edge.end() {
                 let (path, origin) = edges.path(&edge);
-                match self.config.validator.validate(path.clone())? {
+                match self.config.validator.validate(path.as_slice())? {
                     CertificatePathValidation::Found => {
                         return Ok(Report {
                             found: Some(Found { path, origin }),

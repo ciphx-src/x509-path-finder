@@ -17,7 +17,7 @@ impl PathValidator for TestPathValidator {
 
     fn validate(
         &self,
-        path: Vec<Certificate>,
+        path: &[Certificate],
     ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
             return Ok(CertificatePathValidation::NotFound(
@@ -25,7 +25,7 @@ impl PathValidator for TestPathValidator {
             ));
         }
 
-        let ic = path.last().unwrap();
+        let ic = path.last().expect("path confirmed non empty");
 
         for root in &self.roots {
             if root.issued(ic) {

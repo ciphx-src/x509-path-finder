@@ -25,7 +25,7 @@ impl PathValidator for OpenSSLPathValidator {
 
     fn validate(
         &self,
-        path: Vec<Certificate>,
+        path: &[Certificate],
     ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
             return Ok(CertificatePathValidation::NotFound(
