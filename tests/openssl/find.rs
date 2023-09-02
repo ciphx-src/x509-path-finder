@@ -1,9 +1,7 @@
 use openssl::x509::store::X509StoreBuilder;
 use openssl::x509::verify::X509VerifyFlags;
 use openssl::x509::X509;
-use std::sync::RwLock;
 use std::time::Duration;
-use x509_path_finder::provided::store::DefaultCertificateStore;
 use x509_path_finder::provided::validator::openssl::OpenSSLPathValidator;
 use x509_path_finder::report::CertificateOrigin;
 use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration};
@@ -23,14 +21,14 @@ async fn test_find() {
     builder.set_flags(X509VerifyFlags::X509_STRICT).unwrap();
     let validator = OpenSSLPathValidator::new(builder.build());
 
-    let store = DefaultCertificateStore::from_iter(certificates.clone());
-
-    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
-        limit: Duration::default(),
-        aia: None,
-        store: RwLock::new(store).into(),
-        validator,
-    });
+    let mut search = X509PathFinder::new(
+        X509PathFinderConfiguration {
+            limit: Duration::default(),
+            aia: None,
+            validator,
+        },
+        certificates.clone(),
+    );
 
     let found = search
         .find(certificates[0].clone())

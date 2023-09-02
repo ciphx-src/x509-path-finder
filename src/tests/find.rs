@@ -1,28 +1,26 @@
 use crate::api::{Certificate, TestCertificateInner};
-use crate::provided::store::DefaultCertificateStore;
 use crate::report::CertificateOrigin;
 use crate::tests::validator::TestPathValidator;
 use crate::{X509PathFinder, X509PathFinderConfiguration};
-use std::sync::RwLock;
 use std::time::Duration;
 
 #[tokio::test]
 async fn test_first_path_found_no_aia() {
-    let store = DefaultCertificateStore::from_iter(build_certificates());
-
-    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
-        limit: Duration::default(),
-        aia: None,
-        store: RwLock::new(store).into(),
-        validator: TestPathValidator::new(vec![Certificate {
-            inner: TestCertificateInner {
-                issuer: 0,
-                subject: 0,
-                aia: vec![],
-            },
-            ord: 0,
-        }]),
-    });
+    let mut search = X509PathFinder::new(
+        X509PathFinderConfiguration {
+            limit: Duration::default(),
+            aia: None,
+            validator: TestPathValidator::new(vec![Certificate {
+                inner: TestCertificateInner {
+                    issuer: 0,
+                    subject: 0,
+                    aia: vec![],
+                },
+                ord: 0,
+            }]),
+        },
+        build_certificates(),
+    );
 
     let report = search
         .find(Certificate {
@@ -87,21 +85,21 @@ async fn test_first_path_found_no_aia() {
 
 #[tokio::test]
 async fn test_first_path_end_no_aia() {
-    let store = DefaultCertificateStore::from_iter(build_certificates());
-
-    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
-        limit: Duration::default(),
-        aia: None,
-        store: RwLock::new(store).into(),
-        validator: TestPathValidator::new(vec![Certificate {
-            inner: TestCertificateInner {
-                issuer: 100,
-                subject: 100,
-                aia: vec![],
-            },
-            ord: 0,
-        }]),
-    });
+    let mut search = X509PathFinder::new(
+        X509PathFinderConfiguration {
+            limit: Duration::default(),
+            aia: None,
+            validator: TestPathValidator::new(vec![Certificate {
+                inner: TestCertificateInner {
+                    issuer: 100,
+                    subject: 100,
+                    aia: vec![],
+                },
+                ord: 0,
+            }]),
+        },
+        build_certificates(),
+    );
 
     let report = search
         .find(Certificate {
@@ -182,8 +180,6 @@ fn build_certificates() -> Vec<Certificate> {
 
 #[tokio::test]
 async fn test_only_aia() {
-    let store = DefaultCertificateStore::default();
-
     let root = Certificate {
         inner: TestCertificateInner {
             issuer: 0,
@@ -232,12 +228,14 @@ async fn test_only_aia() {
     c3.inner.aia.push((&c2).try_into().unwrap());
     c4.inner.aia.push((&c3).try_into().unwrap());
 
-    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
-        limit: Duration::default(),
-        aia: Some(()),
-        store: RwLock::new(store).into(),
-        validator: TestPathValidator::new(vec![root]),
-    });
+    let mut search = X509PathFinder::new(
+        X509PathFinderConfiguration {
+            limit: Duration::default(),
+            aia: Some(()),
+            validator: TestPathValidator::new(vec![root]),
+        },
+        vec![],
+    );
 
     let report = search.find(c4.clone()).await.unwrap();
 
@@ -260,8 +258,6 @@ async fn test_only_aia() {
 
 #[tokio::test]
 async fn test_bridge_aia() {
-    let store = DefaultCertificateStore::default();
-
     let root = Certificate {
         inner: TestCertificateInner {
             issuer: 0,
@@ -329,12 +325,14 @@ async fn test_bridge_aia() {
         ord: 0,
     };
 
-    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
-        limit: Default::default(),
-        aia: Some(()),
-        store: RwLock::new(store).into(),
-        validator: TestPathValidator::new(vec![root.clone()]),
-    });
+    let mut search = X509PathFinder::new(
+        X509PathFinderConfiguration {
+            limit: Default::default(),
+            aia: Some(()),
+            validator: TestPathValidator::new(vec![root.clone()]),
+        },
+        vec![],
+    );
 
     let report = search.find(c4.clone()).await.unwrap();
 
@@ -355,14 +353,14 @@ async fn test_bridge_aia() {
         found.origin
     );
 
-    let store = DefaultCertificateStore::from_iter(vec![bridge.clone()]);
-
-    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
-        limit: Default::default(),
-        aia: Some(()),
-        store: RwLock::new(store).into(),
-        validator: TestPathValidator::new(vec![bridge_authority]),
-    });
+    let mut search = X509PathFinder::new(
+        X509PathFinderConfiguration {
+            limit: Default::default(),
+            aia: Some(()),
+            validator: TestPathValidator::new(vec![bridge_authority]),
+        },
+        vec![bridge.clone()],
+    );
 
     let report = search.find(c4.clone()).await.unwrap();
 

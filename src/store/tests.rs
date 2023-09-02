@@ -1,5 +1,5 @@
-use crate::api::{Certificate, CertificateStore, TestCertificateInner};
-use crate::provided::store::default::DefaultCertificateStore;
+use crate::api::{Certificate, TestCertificateInner};
+use crate::store::DefaultCertificateStore;
 
 #[test]
 fn test_ord() {

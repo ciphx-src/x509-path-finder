@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use crate::api::{Certificate, CertificateStore};
+use crate::api::Certificate;
 use std::collections::{btree_set, BTreeSet};
 
 /// Default [`CertificateStore`](crate::api::CertificateStore) implementation.
@@ -17,6 +17,12 @@ impl DefaultCertificateStore {
             certificates: Default::default(),
             serial: 0,
         }
+    }
+    pub fn issuers(&self, subject: &Certificate) -> Vec<&Certificate> {
+        self.certificates
+            .iter()
+            .filter(|c| c.issued(subject))
+            .collect()
     }
 }
 
@@ -56,14 +62,5 @@ impl Extend<Certificate> for DefaultCertificateStore {
             c.set_ord(self.serial);
             c
         }));
-    }
-}
-
-impl CertificateStore for DefaultCertificateStore {
-    fn issuers(&self, subject: &Certificate) -> Vec<&Certificate> {
-        self.certificates
-            .iter()
-            .filter(|c| c.issued(subject))
-            .collect()
     }
 }

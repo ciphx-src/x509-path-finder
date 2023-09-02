@@ -1,5 +1,5 @@
 use std::iter::once;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::vec;
 
@@ -11,15 +11,15 @@ use {
     x509_client::{X509Client, X509ClientResult},
 };
 
-use crate::api::{Certificate, CertificatePathValidation, CertificateStore, PathValidator};
+use crate::api::{Certificate, CertificatePathValidation, PathValidator};
 use crate::edge::{Edge, EdgeDisposition, Edges};
 use crate::report::{CertificateOrigin, Found, Report, ValidationFailure};
+use crate::store::DefaultCertificateStore;
 use crate::{X509PathFinderError, X509PathFinderResult};
 
 /// [`X509PathFinder`](crate::X509PathFinder) configuration
-pub struct X509PathFinderConfiguration<S, V>
+pub struct X509PathFinderConfiguration<V>
 where
-    S: CertificateStore,
     V: PathValidator,
 {
     /// limit runtime of path search. Actual limit will be N * HTTP timeout. See `Reqwest` docs for setting HTTP connection timeout.
@@ -29,30 +29,30 @@ where
     pub aia: Option<X509Client<DefaultX509Iterator>>,
     #[cfg(test)]
     pub aia: Option<()>,
-    /// [`CertificateStore`](crate::api::CertificateStore) implementation
-    pub store: Arc<RwLock<S>>,
     /// [`PathValidator`](crate::api::PathValidator) implementation
     pub validator: V,
 }
 
 /// X509 Path Finder
-pub struct X509PathFinder<S, V>
+pub struct X509PathFinder<V>
 where
-    S: CertificateStore,
     V: PathValidator,
 {
-    config: X509PathFinderConfiguration<S, V>,
+    config: X509PathFinderConfiguration<V>,
+    store: DefaultCertificateStore,
 }
 
-impl<S, V> X509PathFinder<S, V>
+impl<V> X509PathFinder<V>
 where
-    S: CertificateStore,
     V: PathValidator,
     X509PathFinderError: From<<V as PathValidator>::PathValidatorError>,
 {
     /// Instantiate new X509PathFinder with configuration
-    pub fn new(config: X509PathFinderConfiguration<S, V>) -> Self {
-        X509PathFinder { config }
+    pub fn new(config: X509PathFinderConfiguration<V>, certificates: Vec<Certificate>) -> Self {
+        X509PathFinder {
+            config,
+            store: DefaultCertificateStore::from_iter(certificates),
+        }
     }
 
     /// Find certificate path, returning [`Report`](crate::report::Report)
@@ -141,13 +141,7 @@ where
         parent_certificate: &Certificate,
     ) -> X509PathFinderResult<Vec<Edge>> {
         let mut candidates = vec![];
-        for candidate in self
-            .config
-            .store
-            .read()
-            .map_err(|e| X509PathFinderError::Error(e.to_string()))?
-            .issuers(parent_certificate)
-        {
+        for candidate in self.store.issuers(parent_certificate) {
             // filter out self-signed
             if !candidate.issued(candidate) {
                 candidates
@@ -166,11 +160,7 @@ where
     ) -> X509PathFinderResult<Vec<Edge>> {
         let mut candidates = vec![];
         for candidate in self.get_all(url.as_ref()).await.unwrap_or_else(|_| vec![]) {
-            self.config
-                .store
-                .write()
-                .map_err(|e| X509PathFinderError::Error(e.to_string()))?
-                .extend(once(candidate.clone()));
+            self.store.extend(once(candidate.clone()));
 
             // filtering out self-signed
             if candidate.issued(&candidate) {
@@ -213,7 +203,7 @@ where
     }
 
     /// Consume finder, return configuration
-    pub fn into_config(self) -> X509PathFinderConfiguration<S, V> {
+    pub fn into_config(self) -> X509PathFinderConfiguration<V> {
         self.config
     }
 
