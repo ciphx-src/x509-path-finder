@@ -1,3 +1,4 @@
+use der::Decode;
 use std::iter::once;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -6,7 +7,7 @@ use url::Url;
 
 #[cfg(not(test))]
 use {
-    der::{Decode, Encode},
+    der::Encode,
     x509_client::provided::default::DefaultX509Iterator,
     x509_client::{X509Client, X509ClientResult},
 };
@@ -47,20 +48,24 @@ where
     V: PathValidator,
     X509PathFinderError: From<<V as PathValidator>::PathValidatorError>,
 {
-    /// Instantiate new X509PathFinder with configuration
-    pub fn new<I: IntoIterator<Item = Certificate>>(
+    /// Start new X509PathFinder search with configuration
+    pub fn start<C: AsRef<[u8]>>(
         config: X509PathFinderConfiguration<V>,
-        certificates: I,
-    ) -> Self {
-        X509PathFinder {
+        certificates_der: &[C],
+    ) -> X509PathFinderResult<Self> {
+        let mut certificates = vec![];
+        for c in certificates_der {
+            certificates.push(Certificate::from_der(c.as_ref())?);
+        }
+        Ok(X509PathFinder {
             config,
             store: CertificateStore::from_iter(certificates),
-        }
+        })
     }
 
     /// Find certificate path, returning [`Report`](crate::report::Report)
-    pub async fn find(&mut self, target: Certificate) -> X509PathFinderResult<Report> {
-        let mut edges = Edges::new(target);
+    pub async fn find<C: AsRef<[u8]>>(&mut self, target: C) -> X509PathFinderResult<Report> {
+        let mut edges = Edges::new(Certificate::from_der(target.as_ref())?);
 
         let start = Instant::now();
 

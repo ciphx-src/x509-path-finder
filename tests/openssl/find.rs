@@ -5,11 +5,11 @@ use std::time::Duration;
 use x509_path_finder::provided::validator::openssl::OpenSSLPathValidator;
 use x509_path_finder::report::CertificateOrigin;
 use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration};
-use x509_path_finder_material::{load_certificates, load_material};
+use x509_path_finder_material::{load_certificates_der, load_material};
 
 #[tokio::test]
 async fn test_find() {
-    let certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
+    let certificates = load_certificates_der("kim@id.vandelaybank.com-fullchain.pem")
         .await
         .unwrap();
 
@@ -21,14 +21,15 @@ async fn test_find() {
     builder.set_flags(X509VerifyFlags::X509_STRICT).unwrap();
     let validator = OpenSSLPathValidator::new(builder.build());
 
-    let mut search = X509PathFinder::new(
+    let mut search = X509PathFinder::start(
         X509PathFinderConfiguration {
             limit: Duration::default(),
             aia: None,
             validator,
         },
-        certificates.clone(),
-    );
+        certificates.as_slice(),
+    )
+    .unwrap();
 
     let found = search
         .find(certificates[0].clone())
