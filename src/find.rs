@@ -2,11 +2,11 @@ use std::iter::once;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::vec;
-
 use url::Url;
 
 #[cfg(not(test))]
 use {
+    der::{Decode, Encode},
     x509_client::provided::default::DefaultX509Iterator,
     x509_client::{X509Client, X509ClientResult},
 };
@@ -119,8 +119,8 @@ where
                     // append any aia edges
                     let aia_urls = edge_certificate.aia();
                     let mut aia_edges = aia_urls
-                        .into_iter()
-                        .map(|u| edges.edge_from_url(u, edge_certificate.clone()))
+                        .iter()
+                        .map(|u| edges.edge_from_url(u.clone(), edge_certificate.clone()))
                         .collect::<Vec<Edge>>();
                     store_candidates.append(&mut aia_edges);
                     Ok(store_candidates)
@@ -200,8 +200,8 @@ where
         }
 
         aia_urls
-            .into_iter()
-            .map(|u| edges.edge_from_url(u, parent_certificate.clone()))
+            .iter()
+            .map(|u| edges.edge_from_url(u.clone(), parent_certificate.clone()))
             .collect()
     }
 
@@ -217,7 +217,13 @@ where
                 .get_all(url)
                 .await?
                 .into_iter()
-                .map(|c| c.into())
+                .filter_map(|c| {
+                    if let Ok(c) = c.to_der() {
+                        Certificate::from_der(&c).ok()
+                    } else {
+                        None
+                    }
+                })
                 .collect())
         } else {
             Ok(vec![])

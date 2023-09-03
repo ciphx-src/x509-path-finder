@@ -1,5 +1,5 @@
 use der::oid::db::rfc5280::{ID_AD_CA_ISSUERS, ID_PE_AUTHORITY_INFO_ACCESS};
-use der::{Decode, DecodeValue, Encode, Header, Length, Reader, Writer};
+use der::{Decode, DecodeValue, Encode, Header, Reader};
 use std::cmp::Ordering;
 use std::sync::Arc;
 use url::Url;
@@ -8,20 +8,28 @@ use x509_cert::ext::pkix::AuthorityInfoAccessSyntax;
 
 #[derive(Clone, Debug)]
 pub struct Certificate {
-    inner: Arc<x509_cert::Certificate>,
+    inner: Arc<CertificateInner>,
     ord: usize,
 }
 
+#[derive(Debug)]
+pub struct CertificateInner {
+    issuer: String,
+    subject: String,
+    aia: Vec<Url>,
+    der: Vec<u8>,
+}
+
 impl Certificate {
-    /// Returns true if `self` issued `subject`.
     pub fn issued(&self, subject: &Self) -> bool {
-        self.inner.tbs_certificate.subject.to_string()
-            == subject.inner.tbs_certificate.issuer.to_string()
+        self.inner.subject == subject.inner.issuer
+    }
+    pub fn aia(&self) -> &[Url] {
+        self.inner.aia.as_slice()
     }
 
-    /// Returns list of any URLs found in the [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extension.
-    pub fn aia(&self) -> Vec<Url> {
-        match &self.inner.tbs_certificate.extensions {
+    fn parse_aia(certificate: &x509_cert::Certificate) -> Vec<Url> {
+        match &certificate.tbs_certificate.extensions {
             None => vec![],
             Some(extensions) => extensions
                 .iter()
@@ -49,32 +57,35 @@ impl Certificate {
         }
     }
 
+    pub fn der(&self) -> &[u8] {
+        &self.inner.der
+    }
+
     pub fn set_ord(&mut self, ord: usize) {
         self.ord = ord;
-    }
-}
-
-impl Encode for Certificate {
-    fn encoded_len(&self) -> der::Result<Length> {
-        self.inner.encoded_len()
-    }
-
-    fn encode(&self, encoder: &mut impl Writer) -> der::Result<()> {
-        self.inner.encode(encoder)
     }
 }
 
 impl<'r> Decode<'r> for Certificate {
     fn decode<R: Reader<'r>>(reader: &mut R) -> der::Result<Self> {
         let header = Header::decode(reader)?;
-        let inner = x509_cert::Certificate::decode_value(reader, header)?.into();
-        Ok(Self { inner, ord: 0 })
+        let certificate = x509_cert::Certificate::decode_value(reader, header)?;
+        Ok(Self {
+            inner: CertificateInner {
+                issuer: certificate.tbs_certificate.issuer.to_string(),
+                subject: certificate.tbs_certificate.subject.to_string(),
+                aia: Self::parse_aia(&certificate),
+                der: certificate.to_der()?,
+            }
+            .into(),
+            ord: 0,
+        })
     }
 }
 
 impl PartialEq for Certificate {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.eq(&other.inner)
+        self.inner.der.eq(&other.inner.der)
     }
 }
 
@@ -97,14 +108,5 @@ impl Ord for Certificate {
         }
 
         Ordering::Less
-    }
-}
-
-impl From<x509_cert::Certificate> for Certificate {
-    fn from(inner: x509_cert::Certificate) -> Self {
-        Self {
-            inner: inner.into(),
-            ord: 0,
-        }
     }
 }

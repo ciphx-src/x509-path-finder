@@ -1,10 +1,12 @@
+use der::Decode;
+use der::Encode;
 use std::io;
 use std::io::ErrorKind;
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use url::Url;
-use x509_cert::Certificate as NativeCertificate;
+use x509_cert::{der, Certificate as NativeCertificate};
 use x509_client::provided::default::DefaultX509Iterator;
 use x509_client::X509ClientConfiguration;
 use x509_path_finder::api::Certificate;
@@ -36,9 +38,14 @@ pub async fn load_native_certificates(file: &str) -> io::Result<Vec<NativeCertif
 }
 
 pub async fn load_certificates(file: &str) -> io::Result<Vec<Certificate>> {
-    Ok(load_native_certificates(file)
-        .await?
-        .into_iter()
-        .map(|c| c.into())
-        .collect())
+    let mut r = vec![];
+    for c in load_native_certificates(file).await? {
+        let der = c
+            .to_der()
+            .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;
+        let cert = Certificate::from_der(&der)
+            .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;
+        r.push(cert);
+    }
+    Ok(r)
 }

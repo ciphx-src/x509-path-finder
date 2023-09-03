@@ -1,6 +1,6 @@
 use crate::{X509PathFinderError, X509PathFinderResult};
 use base64::{engine::general_purpose, Engine as _};
-use der::{Decode, Encode, Length, Reader, Writer};
+use der::{Decode, Reader};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use url::Url;
@@ -22,6 +22,10 @@ impl Certificate {
 
     pub fn set_ord(&mut self, ord: usize) {
         self.ord = ord;
+    }
+
+    pub fn der(&self) -> &[u8] {
+        &[]
     }
 }
 
@@ -69,16 +73,6 @@ impl Ord for Certificate {
         }
 
         Ordering::Less
-    }
-}
-
-impl Encode for Certificate {
-    fn encoded_len(&self) -> der::Result<Length> {
-        Ok(Length::new(0))
-    }
-
-    fn encode(&self, _: &mut impl Writer) -> der::Result<()> {
-        Ok(())
     }
 }
 
