@@ -45,14 +45,14 @@ impl Edges {
         self.edges.extend(edges)
     }
 
-    pub fn path(&self, target: &Edge) -> (Vec<Certificate>, Vec<CertificateOrigin>) {
+    pub fn path(&self, target: &Edge) -> (Vec<Vec<u8>>, Vec<CertificateOrigin>) {
         let mut path = vec![];
         let mut path_origin = vec![];
 
         let mut current_edge = Some(target);
         while let Some(edge) = current_edge {
             if let EdgeDisposition::Certificate(certificate, origin) = edge.disposition() {
-                path.push(certificate.clone());
+                path.push(certificate.der().to_vec());
                 path_origin.push(origin.clone());
             }
             current_edge = self.parents.get(edge);

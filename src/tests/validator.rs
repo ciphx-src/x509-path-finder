@@ -1,5 +1,6 @@
 use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
 use crate::X509PathFinderError;
+use der::Decode;
 
 pub struct TestPathValidator {
     roots: Vec<Certificate>,
@@ -15,9 +16,9 @@ impl TestPathValidator {
 impl PathValidator for TestPathValidator {
     type PathValidatorError = X509PathFinderError;
 
-    fn validate(
+    fn validate<C: AsRef<[u8]>>(
         &self,
-        path: &[Certificate],
+        path: &[C],
     ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
             return Ok(CertificatePathValidation::NotFound(
@@ -25,10 +26,12 @@ impl PathValidator for TestPathValidator {
             ));
         }
 
-        let ic = path.last().expect("path confirmed non empty");
+        let ic = path.last().expect("path confirmed non empty").as_ref();
+        let ic = Certificate::from_der(ic)
+            .map_err(|e| Self::PathValidatorError::Error(e.to_string()))?;
 
         for root in &self.roots {
-            if root.issued(ic) {
+            if root.issued(&ic) {
                 return Ok(CertificatePathValidation::Found);
             }
         }
