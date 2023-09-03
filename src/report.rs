@@ -1,5 +1,6 @@
 //! Certificate path search report
 
+use crate::api::Certificate;
 use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
@@ -19,7 +20,7 @@ pub struct Report {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Found {
     /// Discovered certificate path
-    pub path: Vec<Vec<u8>>,
+    pub path: Vec<Certificate>,
     /// Certificate path origins
     pub origin: Vec<CertificateOrigin>,
 }
@@ -39,7 +40,7 @@ pub enum CertificateOrigin {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ValidationFailure {
     /// Path where validation failure occurred
-    pub path: Vec<Vec<u8>>,
+    pub path: Vec<Certificate>,
     /// Path origins where validation failure occurred
     pub origin: Vec<CertificateOrigin>,
     /// Human-readable reason for validation failure

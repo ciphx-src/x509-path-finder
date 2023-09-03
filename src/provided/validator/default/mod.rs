@@ -2,7 +2,7 @@
 
 pub mod result;
 
-use crate::api::{CertificatePathValidation, PathValidator, PathValidatorError};
+use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
 use crate::provided::validator::default::result::DefaultPathValidatorError;
 use rustls::server::ParsedCertificate;
 use rustls::{Certificate as RustlsCertificate, RootCertStore};
@@ -22,9 +22,9 @@ impl DefaultPathValidator {
 impl PathValidator for DefaultPathValidator {
     type PathValidatorError = DefaultPathValidatorError;
 
-    fn validate<C: AsRef<[u8]>>(
+    fn validate<'r>(
         &self,
-        path: &[C],
+        path: &[Certificate],
     ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
             return Ok(CertificatePathValidation::NotFound(
@@ -34,11 +34,11 @@ impl PathValidator for DefaultPathValidator {
 
         let mut rustls_path: Vec<RustlsCertificate> = vec![];
         for certificate in &path[1..] {
-            rustls_path.push(RustlsCertificate(certificate.as_ref().to_vec()));
+            rustls_path.push(RustlsCertificate(certificate.der().to_vec()));
         }
 
         match rustls::client::verify_server_cert_signed_by_trust_anchor(
-            &ParsedCertificate::try_from(&RustlsCertificate(path[0].as_ref().to_vec()))?,
+            &ParsedCertificate::try_from(&RustlsCertificate(path[0].der().to_vec()))?,
             &self.store,
             rustls_path.as_slice(),
             SystemTime::now(),

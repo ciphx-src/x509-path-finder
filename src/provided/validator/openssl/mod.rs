@@ -2,7 +2,7 @@
 
 pub mod result;
 
-use crate::api::{CertificatePathValidation, PathValidator, PathValidatorError};
+use crate::api::{Certificate, CertificatePathValidation, PathValidator, PathValidatorError};
 use crate::provided::validator::openssl::result::OpenSSLPathValidatorError;
 use openssl::stack::Stack;
 use openssl::x509::store::X509Store;
@@ -22,9 +22,9 @@ impl OpenSSLPathValidator {
 impl PathValidator for OpenSSLPathValidator {
     type PathValidatorError = OpenSSLPathValidatorError;
 
-    fn validate<C: AsRef<[u8]>>(
+    fn validate(
         &self,
-        path: &[C],
+        path: &[Certificate],
     ) -> Result<CertificatePathValidation, Self::PathValidatorError> {
         if path.is_empty() {
             return Ok(CertificatePathValidation::NotFound(
@@ -34,13 +34,13 @@ impl PathValidator for OpenSSLPathValidator {
 
         let mut openssl_path = Stack::new()?;
         for certificate in &path[1..] {
-            openssl_path.push(X509::from_der(certificate.as_ref())?)?;
+            openssl_path.push(X509::from_der(certificate.der())?)?;
         }
 
         let mut context = X509StoreContext::new()?;
         let verified = context.init(
             self.store.as_ref(),
-            X509::from_der(path[0].as_ref())?.as_ref(),
+            X509::from_der(path[0].der())?.as_ref(),
             openssl_path.as_ref(),
             |context| {
                 Ok(match context.verify_cert()? {
