@@ -49,14 +49,3 @@ pub async fn load_certificates(file: &str) -> io::Result<Vec<Certificate>> {
     }
     Ok(r)
 }
-
-pub async fn load_certificates_der(file: &str) -> io::Result<Vec<Vec<u8>>> {
-    let mut r = vec![];
-    for c in load_native_certificates(file).await? {
-        let der = c
-            .to_der()
-            .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;
-        r.push(der);
-    }
-    Ok(r)
-}
