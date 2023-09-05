@@ -12,7 +12,8 @@ use x509_client::provided::default::DefaultX509Iterator;
 use x509_client::{X509Client, X509ClientConfiguration, X509ClientResult};
 
 /// [`X509PathFinder`](crate::X509PathFinder) configuration
-pub struct X509PathFinderConfiguration<V>
+#[derive(Clone)]
+pub struct X509PathFinderConfiguration<'v, V>
 where
     V: PathValidator,
 {
@@ -21,30 +22,30 @@ where
     /// Optional client to find additional certificates by parsing URLs from [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extensions
     pub aia: Option<X509ClientConfiguration>,
     /// [`PathValidator`](crate::api::PathValidator) implementation
-    pub validator: V,
+    pub validator: &'v V,
     /// Bridge and cross signed-certificates to use for path finding
     pub certificates: Vec<crate::Certificate>,
 }
 
 /// X509 Path Finder
-pub struct X509PathFinder<V>
+pub struct X509PathFinder<'v, V>
 where
     V: PathValidator,
 {
     limit: Duration,
     aia: Option<X509Client<DefaultX509Iterator>>,
-    validator: V,
+    validator: &'v V,
     store: CertificateStore,
     edges: Edges,
 }
 
-impl<V> X509PathFinder<V>
+impl<'v, V> X509PathFinder<'v, V>
 where
     V: PathValidator,
     X509PathFinderError: From<<V as PathValidator>::PathValidatorError>,
 {
     /// Instantiate new X509PathFinder with configuration
-    pub fn new(config: X509PathFinderConfiguration<V>) -> Self
+    pub fn new(config: X509PathFinderConfiguration<'v, V>) -> Self
     where
         X509PathFinderError: From<der::Error>,
     {
@@ -75,7 +76,23 @@ where
                     .validate(path.iter().map(|c| c.inner()).collect())?
                 {
                     CertificatePathValidation::Found => {
-                        drop(self);
+                        drop(self.edges);
+
+                        let mut store = self.store.into_set();
+                        for c in path.iter() {
+                            if store.contains(c) {
+                                store.remove(c);
+                            }
+                        }
+                        let store = store
+                            .into_iter()
+                            .map(|c| {
+                                Rc::into_inner(c)
+                                    .expect("all should be dropped")
+                                    .into_inner()
+                            })
+                            .collect::<Vec<crate::Certificate>>();
+
                         let path: Vec<crate::Certificate> = path
                             .into_iter()
                             .map(|c| {
@@ -89,6 +106,7 @@ where
                             found: Some(Found { path, origin }),
                             duration: Instant::now() - start,
                             failures,
+                            store,
                         });
                     }
                     CertificatePathValidation::NotFound(reason) => {
@@ -110,6 +128,7 @@ where
             found: None,
             duration: Instant::now() - start,
             failures,
+            store: vec![],
         })
     }
 

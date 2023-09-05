@@ -12,6 +12,8 @@ pub struct Report {
     pub duration: Duration,
     /// Any validation failures reported by [`PathValidator`](crate::api::PathValidator)
     pub failures: Vec<ValidationFailure>,
+    /// All cached certificates not used in path
+    pub store: Vec<crate::Certificate>,
 }
 
 /// Path search success

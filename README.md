@@ -72,7 +72,7 @@ x509_path_finder = { version = "0.5", features = ["openssl"] }
         let search = X509PathFinder::new(X509PathFinderConfiguration {
             limit: Duration::default(),
             aia: None,
-            validator,
+            validator: &validator,
             certificates: ic,
         });
 
@@ -149,3 +149,5 @@ The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to 
 
 * Integration tests
 * Prevent issuer loops, same certificate multiple times in a path
+* Weighted path decisions
+* Benchmarking
