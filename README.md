@@ -113,6 +113,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 
 * `found`: on path find success, contains [`Found`](crate::report::Found)
 * `duration`: duration of path search
+* `store`: collection of cached [`Certificate`](crate::Certificate) not used in a discovered path
 * `failures`: any validation failures reported by [`PathValidator`](crate::api::PathValidator) implementations are held in [`ValidationFailure`](crate::report::ValidationFailure)
 
 #### Found
