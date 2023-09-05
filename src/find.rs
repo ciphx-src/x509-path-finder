@@ -125,7 +125,7 @@ where
         match edge.as_ref() {
             // edge is leaf certificate, search for issuer candidates
             Edge::Certificate(edge_certificate, _) => {
-                let mut store_candidates = self.next_store(edge_certificate.clone())?;
+                let mut store_candidates = self.next_store(edge_certificate.clone());
 
                 // return issuer candidates from store or try aia
                 if !store_candidates.is_empty() {
@@ -149,7 +149,7 @@ where
             }
             // edge is url, download certificates, search for issuer candidates
             Edge::Url(url, edge_certificate) => {
-                let url_edges = self.next_url(edge_certificate.as_ref(), url).await?;
+                let url_edges = self.next_url(edge_certificate.as_ref(), url).await;
                 self.edges.borrow_mut().extend(edge, url_edges);
                 Ok(())
             }
@@ -159,27 +159,24 @@ where
     }
 
     // return non self-signed issuer candidates from store
-    fn next_store(
-        &self,
-        parent_certificate: Rc<Certificate>,
-    ) -> X509PathFinderResult<Vec<Rc<Edge>>> {
-        let mut candidates = vec![];
-        for candidate in self.store.borrow().issuers(parent_certificate.as_ref()) {
-            // filter out self-signed
-            if !candidate.issued(candidate.as_ref()) {
-                candidates
-                    .push(Edge::Certificate(candidate.clone(), CertificateOrigin::Store).into());
-            }
-        }
-        Ok(candidates)
+    fn next_store(&self, parent_certificate: Rc<Certificate>) -> Vec<Rc<Edge>> {
+        self.store
+            .borrow()
+            .issuers(parent_certificate.as_ref())
+            .into_iter()
+            .filter_map(|candidate| {
+                // filter out self-signed
+                if !candidate.issued(candidate.as_ref()) {
+                    Some(Edge::Certificate(candidate.clone(), CertificateOrigin::Store).into())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     // download certificates, insert into store, return non self-signed issuer candidates
-    async fn next_url(
-        &self,
-        parent_certificate: &Certificate,
-        url: &Url,
-    ) -> X509PathFinderResult<Vec<Rc<Edge>>> {
+    async fn next_url(&self, parent_certificate: &Certificate, url: &Url) -> Vec<Rc<Edge>> {
         let candidates = self
             .get_all(url)
             .await
@@ -204,9 +201,9 @@ where
 
         // no issuer candidates, return end edge
         if candidates.is_empty() {
-            Ok(vec![Edge::End.into()])
+            vec![Edge::End.into()]
         } else {
-            Ok(candidates)
+            candidates
         }
     }
 
