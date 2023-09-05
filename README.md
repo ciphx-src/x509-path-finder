@@ -8,7 +8,11 @@ X509 Path Finder is a [depth-first search](https://en.wikipedia.org/wiki/Depth-f
 
 ## Synopsis
 
-X509 Path Finder rejects the notion of a single "certificate chain." Instead, it searches for the first match out of infinity. Once it finds a path it can validate, the search halts and the path is returned to the caller.
+X509 Path Finder is inspired by [RFC 4158](https://datatracker.ietf.org/doc/html/rfc4158):
+
+> Many PKIs are now using complex structures... rather than simple hierarchies.  Additionally, some enterprises are gradually moving away from trust lists filled with many trust anchors, and toward an infrastructure with one trust anchor and many cross-certified relationships.... This document suggests using an effective general  approach to path building that involves a depth first tree traversal.
+
+X509 Path Finder rejects the notion of a single certificate "chain." Instead, it searches for the first match out of infinity. Once it finds a path it can validate, the search halts and the path is returned to the caller.
 
 The complexity of the path search is constrained by three factors:
 
@@ -16,7 +20,7 @@ The complexity of the path search is constrained by three factors:
 2. Number of certificates it can find and download by following [AIA](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) URLs
 3. An arbitrary time limit
 
-When evaluating a path candidate for validation, X509 Path Finder is implementation-agnostic. Once it finds a path that has terminated, it presents it to be validated by a backend authority. If the authority validates the path, the search halts.
+When evaluating a path candidate for validation, X509 Path Finder is implementation-agnostic. Once it finds a path that has terminated, it presents it to be validated by a backend authority. If the authority validates the path, the search halts and the path is returned.
 
 X509 Path Finder provides two validators:
 
@@ -29,70 +33,72 @@ By default, the provided [DefaultPathValidator](crate::provided::validator::defa
 
 ````text
 [dependencies]
-x509_path_finder = { version = "0.3"] }
+x509_path_finder = { version = "0.5"] }
 ````
 
 Enable the `openssl` feature for access to the provided [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) validator.
 
 ````text
 [dependencies]
-x509_path_finder = { version = "0.3", features = ["openssl"] }
+x509_path_finder = { version = "0.5", features = ["openssl"] }
 ````
 
 
 ### Example
 
 ```` rust no_run
-use rustls::{Certificate as RustlsCertificate, RootCertStore};
-use std::time::Duration;
-use x509_path_finder::report::CertificateOrigin;
-use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration};
-use x509_path_finder::provided::validator::default::DefaultPathValidator;
 
-async fn test_find(root: Vec<u8>, cross: Vec<x509_path_finder::Certificate>, ee: x509_path_finder::Certificate) -> Result<(), x509_path_finder::X509PathFinderError> {
+    use rustls::{Certificate as RustlsCertificate, RootCertStore};
+    use std::time::Duration;
+    use x509_path_finder::provided::validator::default::DefaultPathValidator;
+    use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration};
 
-    // create Rustls store
-    let mut store = RootCertStore::empty();
-    
-    // add root certificate to store
-    let root = RustlsCertificate(root);
-    store.add(&root).unwrap();
-    
-    // instantiate default validator
-    let validator = DefaultPathValidator::new(store);
+    async fn test_find(
+        root: Vec<u8>,
+        ic: Vec<x509_path_finder::Certificate>,
+        ee: x509_path_finder::Certificate,
+    ) -> Result<(), x509_path_finder::X509PathFinderError> {
+        // create Rustls store
+        let mut store = RootCertStore::empty();
 
-    // instantiate the finder
-    let search = X509PathFinder::new(X509PathFinderConfiguration {
-        limit: Duration::default(),
-        aia: None,
-        validator,
-        certificates: cross
-    });
+        // add root certificate to store
+        let root = RustlsCertificate(root);
+        store.add(&root).unwrap();
 
-    // execute the search
-    let found = search.find(ee).await?.found.unwrap();
+        // instantiate default validator
+        let validator = DefaultPathValidator::new(store);
 
-    // path has two certificates
-    assert_eq!(2, found.path.len());
-    
-    Ok(())
-}
+        // instantiate the finder
+        let search = X509PathFinder::new(X509PathFinderConfiguration {
+            limit: Duration::default(),
+            aia: None,
+            validator,
+            certificates: ic,
+        });
 
+        // execute the search
+        let found = search.find(ee).await?.found.unwrap();
+
+        // path has two certificates
+        assert_eq!(2, found.path.len());
+
+        Ok(())
+    }
 ````
 
 ### Configuration
 
 
-The  [`X509PathFinderConfiguration`](crate::X509PathFinderConfiguration) struct has the following fields.
+The X509 Path Builder is configured with the [`X509PathFinderConfiguration`](crate::X509PathFinderConfiguration) struct, which has the following fields:
 
-* `limit`: limit runtime of path search. Actual limit will be N * HTTP timeout. See [` reqwest::ClientBuilder::timeout`](https://docs.rs/reqwest/0.11.20/reqwest/struct.ClientBuilder.html#method.timeout) for setting HTTP connection timeout.
+* `limit`: limit execution time of path search. Actual limit will be N * HTTP timeout. See [` reqwest::ClientBuilder::timeout`](https://docs.rs/reqwest/0.11.20/reqwest/struct.ClientBuilder.html#method.timeout) for setting HTTP connection timeout.
 * `aia`: optional [`x509_client::X509ClientConfiguration`](https://docs.rs/x509-client/2.0.1/x509_client/struct.X509ClientConfiguration.html) to enable [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extensions. 
 * `validator`: [`PathValidator`](crate::api::PathValidator) implementation
-* `certificates` : additional bridge and cross signed-certificates to use for path finding
+* `certificates` : additional intermediate, bridge and cross signed-certificates to use for path finding. These certificates are considered for path candidacy first, and are tried in order.
 
 #### Resource Management
 
-Because X509 Path Builder can consume AIA URLs from the web, a call to [`X509PathFinder::find`](crate::X509PathFinder::find) could in theory run forever, or be coerced into downloading vast amounts of data. Configuration options for managing X509 Path Finder resources:
+Because X509 Path Builder can consume AIA URLs from the web, a call to [`X509PathFinder::find`](crate::X509PathFinder::find) could in theory run forever, or be coerced into downloading large amounts of data. Resource consumption can be managed with the following configuration settings:
 
 * Set the `limit` duration to non-zero for  [`X509PathFinderConfiguration::limit`](crate::X509PathFinderConfiguration::limit)
 * Set the [` reqwest::ClientBuilder::timeout`](https://docs.rs/reqwest/0.11.20/reqwest/struct.ClientBuilder.html#method.timeout) to a more aggressive value
@@ -101,7 +107,7 @@ Because X509 Path Builder can consume AIA URLs from the web, a call to [`X509Pat
 
 ### Finding Paths
 
-Call [`X509PathFinder::find`](crate::X509PathFinder::find) to find a path. Supply the target end-entity to start working from [Certificate](`crate::Certificate`) from. The search will work backward toward the root certificate.
+Call [`X509PathFinder::find`](crate::X509PathFinder::find) to find a path. Supply the target end-entity [Certificate](`crate::Certificate`) to start from. The search will work backward toward the root certificate.
 
 The returning [`Report`](crate::report::Report) contains the following fields:
 
@@ -125,14 +131,14 @@ The [`Found`](crate::report::Found) struct contains following fields:
 
 #### ValidateFailure
 
-[`ValidationFailure`](crate::report::ValidationFailure) stores any validation failures. Validation failures can occur even though a valid certificate path was eventually found. `ValidateFailure` contains the following fields:
+[`ValidationFailure`](crate::report::ValidationFailure) stores any validation failures. Validation failures can occur even though a valid certificate path was eventually discovered. `ValidateFailure` contains the following fields:
 
 1. `origin`: the [`CertificateOrigin`](crate::report::CertificateOrigin) of where the validation error occurred
 2. `reason`: human-readable reason for the failure
 
 ## API
 
-The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to use different backend authorities to validate certificate paths and add business logic.
+The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to use different backend authorities to validate certificate paths and add business logic, especially [policy](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.5) constraints.
 
 ### Implementations
 
@@ -142,3 +148,4 @@ The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to 
 ## TODO
 
 * Integration tests
+* Prevent issuer loops, same certificate multiple times in a path
