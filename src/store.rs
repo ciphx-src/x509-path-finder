@@ -28,12 +28,16 @@ impl CertificateStore {
             .collect()
     }
 
-    pub fn insert(&mut self, mut certificate: Certificate) -> Rc<Certificate> {
+    pub fn insert(&mut self, mut certificate: Certificate) -> Option<Rc<Certificate>> {
+        if certificate.issued(&certificate) {
+            return None;
+        }
         self.serial += 1;
         certificate.set_ord(self.serial);
         let certificate = Rc::new(certificate);
-        self.certificates.insert(certificate.clone());
-        certificate
+        self.certificates
+            .insert(certificate.clone())
+            .then_some(certificate)
     }
 }
 
@@ -54,14 +58,19 @@ impl IntoIterator for CertificateStore {
 
 impl FromIterator<Certificate> for CertificateStore {
     fn from_iter<T: IntoIterator<Item = Certificate>>(iter: T) -> Self {
-        let certificates = BTreeSet::from_iter(iter.into_iter().enumerate().map(|(i, mut c)| {
-            c.set_ord(i);
-            c.into()
-        }));
-        let serial = certificates.len();
+        // filter self-signed certificates
+        let certificates = BTreeSet::from_iter(
+            iter.into_iter()
+                .filter_map(|c| (!c.issued(&c)).then_some(c))
+                .enumerate()
+                .map(|(i, mut c)| {
+                    c.set_ord(i);
+                    c.into()
+                }),
+        );
         Self {
+            serial: certificates.len(),
             certificates,
-            serial,
         }
     }
 }

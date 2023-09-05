@@ -147,19 +147,12 @@ where
         }
     }
 
-    // return non self-signed issuer candidates from store
+    // return issuer candidates from store
     fn next_store(&self, parent_certificate: Rc<Certificate>) -> Vec<Rc<Edge>> {
         self.store
             .issuers(parent_certificate.as_ref())
             .into_iter()
-            .filter_map(|candidate| {
-                // filter out self-signed
-                if !candidate.issued(candidate.as_ref()) {
-                    Some(Edge::Certificate(candidate.clone(), CertificateOrigin::Store).into())
-                } else {
-                    None
-                }
-            })
+            .map(|c| Edge::Certificate(c, CertificateOrigin::Store).into())
             .collect()
     }
 
@@ -171,19 +164,13 @@ where
             .unwrap_or_else(|_| vec![])
             .into_iter()
             .filter_map(|candidate| {
-                let candidate = self.store.insert(candidate);
-                // filtering out self-signed
-                if candidate.issued(candidate.as_ref()) {
-                    None
-                } else if candidate.issued(parent_certificate) {
+                // filtering out self-signed and duplicates
+                self.store.insert(candidate).and_then(|candidate| {
                     // url is issuer, return as certificate edge
-                    Some(
-                        Edge::Certificate(candidate.clone(), CertificateOrigin::Url(url.clone()))
-                            .into(),
-                    )
-                } else {
-                    None
-                }
+                    candidate.issued(parent_certificate).then(|| {
+                        Edge::Certificate(candidate, CertificateOrigin::Url(url.clone())).into()
+                    })
+                })
             })
             .collect::<Vec<Rc<Edge>>>();
 
