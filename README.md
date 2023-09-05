@@ -42,7 +42,43 @@ x509_path_finder = { version = "0.3", features = ["openssl"] }
 
 ### Example
 
+```` rust no_run
+use rustls::{Certificate as RustlsCertificate, RootCertStore};
+use std::time::Duration;
+use x509_path_finder::report::CertificateOrigin;
+use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration};
+use x509_path_finder::provided::validator::default::DefaultPathValidator;
 
+async fn test_find(root: Vec<u8>, cross: Vec<x509_path_finder::Certificate>, ee: x509_path_finder::Certificate) -> Result<(), x509_path_finder::X509PathFinderError> {
+
+    // create Rustls store
+    let mut store = RootCertStore::empty();
+    
+    // add root certificate to store
+    let root = RustlsCertificate(root);
+    store.add(&root).unwrap();
+    
+    // instantiate default validator
+    let validator = DefaultPathValidator::new(store);
+
+    // instantiate the finder
+    let search = X509PathFinder::new(X509PathFinderConfiguration {
+        limit: Duration::default(),
+        aia: None,
+        validator,
+        certificates: cross
+    });
+
+    // execute the search
+    let found = search.find(ee).await?.found.unwrap();
+
+    // path has two certificates
+    assert_eq!(2, found.path.len());
+    
+    Ok(())
+}
+
+````
 
 ### Configuration
 
