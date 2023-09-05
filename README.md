@@ -60,12 +60,12 @@ Because X509 Path Builder can consume AIA URLs from the web, a call to [`X509Pat
 
 * Set the `limit` duration to non-zero for  [`X509PathFinderConfiguration::limit`](crate::X509PathFinderConfiguration::limit)
 * Set the [` reqwest::ClientBuilder::timeout`](https://docs.rs/reqwest/0.11.20/reqwest/struct.ClientBuilder.html#method.timeout) to a more aggressive value
-* Limit download size by setting [`x509_client::X509ClientConfiguration::limit`](https://docs.rs/x509-client/2.0.1/x509_client/struct.X509ClientConfiguration.html#structfield.limit) to a non-zero value
+* Limit the certificate download size by setting [`x509_client::X509ClientConfiguration::limit`](https://docs.rs/x509-client/2.0.1/x509_client/struct.X509ClientConfiguration.html#structfield.limit) to a non-zero value
 * Disable AIA
 
 ### Finding Paths
 
-Call [`X509PathFinder::find`](crate::X509PathFinder::find) to start the search.
+Call [`X509PathFinder::find`](crate::X509PathFinder::find) to find a path. Supply the target end-entity to start working from [Certificate](`crate::Certificate`) from. The search will work backward toward the root certificate.
 
 The returning [`Report`](crate::report::Report) contains the following fields:
 
@@ -91,7 +91,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 
 ## API
 
-The X509 [`PathValidator`](crate::api::PathValidator) - path validator API can be implemented to use different backend authorities to validate certificate paths, and add business logic.
+The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to use different backend authorities to validate certificate paths and add business logic.
 
 ### Implementations
 
