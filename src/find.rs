@@ -181,7 +181,7 @@ where
         url: &Url,
     ) -> X509PathFinderResult<Vec<Rc<Edge>>> {
         let mut candidates = vec![];
-        for candidate in self.get_all(&url).await.unwrap_or_else(|_| vec![]) {
+        for candidate in self.get_all(url).await.unwrap_or_else(|_| vec![]) {
             let candidate = self.store.borrow_mut().insert(candidate);
 
             // filtering out self-signed
