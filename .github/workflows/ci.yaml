@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - api
 
 jobs:
 
@@ -21,11 +20,11 @@ jobs:
       - name: Lint
         run: |
           cargo fmt -- --check
-          cargo clippy --all-features -- -D warnings          
+          cargo clippy --all --all-features -- -D warnings          
 
       - name: Test
         run: |
-          cargo check --all-features
+          cargo check --all --all-features
           cargo test --all --all-features
 
       - name: Build

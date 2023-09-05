@@ -1,16 +1,18 @@
 #![doc = include_str!("../README.md")]
 
-mod aia;
 pub mod api;
+mod certificate;
 mod edge;
 mod find;
 pub mod provided;
 pub mod report;
 mod result;
-#[cfg(test)]
-pub mod tests;
+mod store;
 
-pub use aia::*;
 pub use find::*;
 pub use result::*;
-pub use x509_client;
+
+pub use x509_cert::Certificate;
+
+#[cfg(test)]
+pub mod tests;

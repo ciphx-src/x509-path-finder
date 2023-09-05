@@ -1,6 +1,4 @@
-use crate::api::CertificateError;
 use crate::api::PathValidatorError;
-use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::result;
@@ -13,10 +11,10 @@ pub type X509PathFinderResult<T> = result::Result<T, X509PathFinderError>;
 pub enum X509PathFinderError {
     /// General errors
     Error(String),
+    /// Errors when parsing certificates
+    DerError(der::Error),
     /// Errors from `X509Client`, when downloading certificates
     X509ClientError(X509ClientError),
-    /// [`Certificate`](crate::api::Certificate) parsing errors
-    CertificateError(Box<dyn CertificateError>),
     /// [`PathValidator`](crate::api::PathValidator) errors
     PathValidatorError(Box<dyn PathValidatorError>),
 }
@@ -27,10 +25,10 @@ impl Display for X509PathFinderError {
             X509PathFinderError::Error(e) => {
                 write!(f, "x509-path-finder -> error: {}", e)
             }
-            X509PathFinderError::X509ClientError(e) => {
-                write!(f, "x509-path-finder -> {}", e)
+            X509PathFinderError::DerError(e) => {
+                write!(f, "x509-path-finder -> der error: {}", e)
             }
-            X509PathFinderError::CertificateError(e) => {
+            X509PathFinderError::X509ClientError(e) => {
                 write!(f, "x509-path-finder -> {}", e)
             }
             X509PathFinderError::PathValidatorError(e) => {
@@ -42,15 +40,15 @@ impl Display for X509PathFinderError {
 
 impl Error for X509PathFinderError {}
 
-impl From<X509ClientError> for X509PathFinderError {
-    fn from(e: X509ClientError) -> Self {
-        Self::X509ClientError(e)
+impl From<der::Error> for X509PathFinderError {
+    fn from(e: der::Error) -> Self {
+        Self::DerError(e)
     }
 }
 
-impl From<Box<dyn CertificateError>> for X509PathFinderError {
-    fn from(e: Box<dyn CertificateError>) -> Self {
-        Self::CertificateError(e)
+impl From<X509ClientError> for X509PathFinderError {
+    fn from(e: X509ClientError) -> Self {
+        Self::X509ClientError(e)
     }
 }
 
@@ -59,5 +57,3 @@ impl From<Box<dyn PathValidatorError>> for X509PathFinderError {
         Self::PathValidatorError(e)
     }
 }
-
-impl PathValidatorError for Infallible {}

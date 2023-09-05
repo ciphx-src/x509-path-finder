@@ -15,7 +15,7 @@ repeat
     endif
 
     if (is end edge?) then (yes)
-        : start with end edge, follow parents and build path;
+        : build path from parent map;
         if (path validates?) then (yes)
             :return validated path;
             stop;
@@ -33,23 +33,23 @@ repeat
                 : search certificate issuers in store;
                 if (has issuers?) then (yes)
                     :add issuers to queue;
-                    :append issuers edges to parent edge;
+                    :map issuers edges to parent edge;
                     if (certificate has aia?) then (yes)
                         :add aia url edges to queue;
-                        :append url edges to parent edge;
+                        :map url edges to parent edge;
                     else (no)
                     endif
                 else (no)
                     if (certificate has aia?) then (yes)
                         :add aia url edges to queue;
-                        :append url edges to parent edge;
+                        :map url edges to parent edge;
                     else (no)
                         : add end edge to queue;
                     endif
                 endif
             case ( url edge )
                 : download certificates with url;
-                :append new certificate edges to parent edge;
+                :map new certificate edges to parent edge;
                 if (certificates are issuer?) then (yes)
                     :add issuers to queue;
                 else (no)

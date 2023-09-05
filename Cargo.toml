@@ -1,6 +1,6 @@
 [package]
 name = "x509-path-finder"
-version = "0.3.5"
+version = "0.5.1"
 edition = "2021"
 authors = ["Curtis Lee Fulton <curtis@ciphx.com>"]
 repository = "https://github.com/merlincinematic/x509-path-finder"
@@ -14,11 +14,13 @@ exclude = ["/.github", "/.gitignore"]
 
 [dependencies]
 log = { version = "0.4.19" }
+bytes = { version = "1" }
 url = { version = "2.4.0" }
+sha2 = { version = "0.10.7" }
 openssl = { version = "0.10.56", features = ["vendored"], optional = true }
 rustls = { version = "0.21.7", features = ["dangerous_configuration"], optional = true }
-cms = { version = "0.2.2", features = ["std", "pem"], optional = true }
-x509-cert = { version = "0.2.4", features = ["pem"], optional = true }
+x509-cert = { version = "0.2.4", features = ["pem"] }
+der = { version = "0.7.6", features = ["alloc", "derive", "flagset", "oid"] }
 x509-client = { version = "2.0.1" }
 
 [dev-dependencies]
@@ -29,9 +31,10 @@ serde_json = { version = "1.0.105" }
 base64 = { version = "0.21.2" }
 url = { version = "2.4.0", features = ["serde"] }
 x509-client = { version = "2.0.1" }
+x509-path-finder-material = { path = "./material" }
 
 [features]
-default = ["rustls", "cms", "x509-cert"]
+default = ["rustls"]
 openssl = ["dep:openssl", "x509-client/openssl"]
 
 [package.metadata.docs.rs]
