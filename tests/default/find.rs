@@ -24,7 +24,7 @@ async fn test_find() {
     let search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: None,
-        validator,
+        validator: &validator,
         certificates,
     });
 

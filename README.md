@@ -72,7 +72,7 @@ x509_path_finder = { version = "0.5", features = ["openssl"] }
         let search = X509PathFinder::new(X509PathFinderConfiguration {
             limit: Duration::default(),
             aia: None,
-            validator,
+            validator: &validator,
             certificates: ic,
         });
 
@@ -113,6 +113,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 
 * `found`: on path find success, contains [`Found`](crate::report::Found)
 * `duration`: duration of path search
+* `store`: collection of cached [`Certificate`](crate::Certificate) not used in a discovered path
 * `failures`: any validation failures reported by [`PathValidator`](crate::api::PathValidator) implementations are held in [`ValidationFailure`](crate::report::ValidationFailure)
 
 #### Found
@@ -148,4 +149,5 @@ The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to 
 ## TODO
 
 * Integration tests
-* Prevent issuer loops, same certificate multiple times in a path
+* Weighted path decisions
+* Benchmarking
