@@ -180,29 +180,34 @@ where
         parent_certificate: &Certificate,
         url: &Url,
     ) -> X509PathFinderResult<Vec<Rc<Edge>>> {
-        let mut candidates = vec![];
-        for candidate in self.get_all(url).await.unwrap_or_else(|_| vec![]) {
-            let candidate = self.store.borrow_mut().insert(candidate);
-
-            // filtering out self-signed
-            if candidate.issued(candidate.as_ref()) {
-                continue;
-            }
-
-            // url is issuer, return as certificate edge
-            if candidate.issued(parent_certificate) {
-                candidates.push(
-                    Edge::Certificate(candidate.clone(), CertificateOrigin::Url(url.clone()))
-                        .into(),
-                );
-            }
-        }
+        let candidates = self
+            .get_all(url)
+            .await
+            .unwrap_or_else(|_| vec![])
+            .into_iter()
+            .filter_map(|candidate| {
+                let candidate = self.store.borrow_mut().insert(candidate);
+                // filtering out self-signed
+                if candidate.issued(candidate.as_ref()) {
+                    None
+                } else if candidate.issued(parent_certificate) {
+                    // url is issuer, return as certificate edge
+                    Some(
+                        Edge::Certificate(candidate.clone(), CertificateOrigin::Url(url.clone()))
+                            .into(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<Rc<Edge>>>();
 
         // no issuer candidates, return end edge
         if candidates.is_empty() {
-            candidates.push(Edge::End.into());
+            Ok(vec![Edge::End.into()])
+        } else {
+            Ok(candidates)
         }
-        Ok(candidates)
     }
 
     // if aia enabled, return aia edges
