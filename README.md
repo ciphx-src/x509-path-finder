@@ -75,6 +75,11 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 
 #### Found
 
+The [`Found`](crate::report::Found) struct contains following fields:
+
+* path - the discovered path, a vec of [`Certificate`](crate::Certificate)
+* origin - the path [`CertificateOrigin`](crate::report::CertificateOrigin) 
+
 #### CertificateOrigin
 [`CertificateOrigin`](crate::report::CertificateOrigin) is an enum that describes the origin of each certificate. Can be one of:
 
