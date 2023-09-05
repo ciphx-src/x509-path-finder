@@ -1,4 +1,4 @@
-use crate::api::Certificate;
+use crate::certificate::Certificate;
 use std::collections::{btree_set, BTreeSet};
 use std::rc::Rc;
 

@@ -8,9 +8,11 @@ use x509_path_finder::provided::validator::default::DefaultPathValidator;
 
 #[tokio::test]
 async fn test_find() {
-    let certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
+    let mut certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
         .await
         .unwrap();
+    let expected = certificates.clone();
+    let ee = certificates.remove(0);
 
     let root = load_material("vandelaybank.com.cer").await.unwrap();
     let root = RustlsCertificate(root);
@@ -23,17 +25,12 @@ async fn test_find() {
         limit: Duration::default(),
         aia: None,
         validator,
-        certificates: vec![certificates[1].clone()],
+        certificates,
     });
 
-    let found = search
-        .find(certificates[0].clone())
-        .await
-        .unwrap()
-        .found
-        .unwrap();
+    let found = search.find(ee).await.unwrap().found.unwrap();
 
-    assert_eq!(2, found.path.len());
+    assert_eq!(expected, found.path);
     assert_eq!(
         vec![CertificateOrigin::Target, CertificateOrigin::Store],
         found.origin

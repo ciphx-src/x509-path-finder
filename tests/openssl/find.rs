@@ -12,6 +12,7 @@ async fn test_find() {
     let mut certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
         .await
         .unwrap();
+    let expected = certificates.clone();
     let ee = certificates.remove(0);
 
     let root = load_material("vandelaybank.com.cer").await.unwrap();
@@ -31,7 +32,7 @@ async fn test_find() {
 
     let found = search.find(ee).await.unwrap().found.unwrap();
 
-    assert_eq!(2, found.path.len());
+    assert_eq!(expected, found.path);
     assert_eq!(
         vec![CertificateOrigin::Target, CertificateOrigin::Store],
         found.origin

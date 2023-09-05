@@ -1,4 +1,5 @@
-use crate::api::{Certificate, CertificatePathValidation, PathValidator};
+use crate::api::{CertificatePathValidation, PathValidator};
+use crate::certificate::Certificate;
 use crate::edge::{Edge, Edges};
 use crate::report::{CertificateOrigin, Found, Report, ValidationFailure};
 use crate::store::CertificateStore;

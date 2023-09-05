@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::rc::Rc;
 
-use crate::api::Certificate;
+use crate::certificate::Certificate;
 use crate::report::CertificateOrigin;
 use url::Url;
 

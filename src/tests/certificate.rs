@@ -1,5 +1,5 @@
+use crate::certificate::Certificate;
 use url::Url;
-use x509_path_finder::api::Certificate;
 use x509_path_finder_material::load_certificates;
 
 #[tokio::test]
