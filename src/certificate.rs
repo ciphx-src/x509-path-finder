@@ -9,7 +9,7 @@ use x509_cert::ext::pkix::AuthorityInfoAccessSyntax;
 
 #[derive(Clone, Debug)]
 pub struct Certificate {
-    inner: x509_cert::Certificate,
+    inner: crate::Certificate,
     issuer: String,
     subject: String,
     aia: Vec<Url>,
@@ -25,7 +25,7 @@ impl Certificate {
         self.aia.as_slice()
     }
 
-    fn parse_aia(certificate: &x509_cert::Certificate) -> Vec<Url> {
+    fn parse_aia(certificate: &crate::Certificate) -> Vec<Url> {
         match &certificate.tbs_certificate.extensions {
             None => vec![],
             Some(extensions) => extensions
@@ -54,11 +54,11 @@ impl Certificate {
         }
     }
 
-    pub fn inner(&self) -> &x509_cert::Certificate {
+    pub fn inner(&self) -> &crate::Certificate {
         &self.inner
     }
 
-    pub fn into_inner(self) -> x509_cert::Certificate {
+    pub fn into_inner(self) -> crate::Certificate {
         self.inner
     }
 
@@ -80,7 +80,7 @@ impl Encode for Certificate {
 impl<'r> Decode<'r> for Certificate {
     fn decode<R: Reader<'r>>(reader: &mut R) -> der::Result<Self> {
         let header = Header::decode(reader)?;
-        let inner = x509_cert::Certificate::decode_value(reader, header)?;
+        let inner = crate::Certificate::decode_value(reader, header)?;
         Ok(inner.into())
     }
 }
@@ -119,8 +119,8 @@ impl Hash for Certificate {
     }
 }
 
-impl From<x509_cert::Certificate> for Certificate {
-    fn from(inner: x509_cert::Certificate) -> Self {
+impl From<crate::Certificate> for Certificate {
+    fn from(inner: crate::Certificate) -> Self {
         let mut hasher = Sha256::new();
         hasher.update(inner.signature.raw_bytes());
         Self {

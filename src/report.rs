@@ -18,7 +18,7 @@ pub struct Report {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Found {
     /// Discovered certificate path
-    pub path: Vec<x509_cert::Certificate>,
+    pub path: Vec<crate::Certificate>,
     /// Certificate path origins
     pub origin: Vec<CertificateOrigin>,
 }

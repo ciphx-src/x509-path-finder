@@ -9,7 +9,7 @@ pub trait PathValidator {
     /// Validates `path`, returning results as [`CertificatePathValidation`](crate::api::validator::CertificatePathValidation)
     fn validate(
         &self,
-        path: Vec<&x509_cert::Certificate>,
+        path: Vec<&crate::Certificate>,
     ) -> Result<CertificatePathValidation, Self::PathValidatorError>;
 }
 

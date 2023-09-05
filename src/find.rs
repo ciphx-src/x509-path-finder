@@ -24,7 +24,7 @@ where
     /// [`PathValidator`](crate::api::PathValidator) implementation
     pub validator: V,
     /// Bridge and cross signed-certificates to use for path finding
-    pub certificates: Vec<x509_cert::Certificate>,
+    pub certificates: Vec<crate::Certificate>,
 }
 
 /// X509 Path Finder
@@ -61,7 +61,7 @@ where
     }
 
     /// Find certificate path, returning [`Report`](crate::report::Report)
-    pub async fn find(self, target: x509_cert::Certificate) -> X509PathFinderResult<Report> {
+    pub async fn find(self, target: crate::Certificate) -> X509PathFinderResult<Report> {
         self.edges.borrow_mut().start(target.into());
         let start = Instant::now();
         let mut failures = vec![];
@@ -85,7 +85,7 @@ where
                 {
                     CertificatePathValidation::Found => {
                         drop(self);
-                        let path: Vec<x509_cert::Certificate> = path
+                        let path: Vec<crate::Certificate> = path
                             .into_iter()
                             .map(|c| {
                                 Rc::into_inner(c)
