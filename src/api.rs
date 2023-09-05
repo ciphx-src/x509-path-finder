@@ -1,3 +1,5 @@
+//! API Traits
+
 use std::fmt::{Debug, Display};
 
 /// Certificate path validation. Implement to customize behavior. Note: X509 certificate [path validation](https://datatracker.ietf.org/doc/html/rfc5280#section-6) is not

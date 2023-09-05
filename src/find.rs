@@ -4,7 +4,6 @@ use crate::edge::{Edge, Edges};
 use crate::report::{CertificateOrigin, Found, Report, ValidationFailure};
 use crate::store::CertificateStore;
 use crate::{X509PathFinderError, X509PathFinderResult};
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 use std::vec;
@@ -35,8 +34,8 @@ where
     limit: Duration,
     aia: Option<X509Client<DefaultX509Iterator>>,
     validator: V,
-    store: RefCell<CertificateStore>,
-    edges: RefCell<Edges>,
+    store: CertificateStore,
+    edges: Edges,
 }
 
 impl<V> X509PathFinder<V>
@@ -53,32 +52,24 @@ where
             limit: config.limit,
             aia: config.aia.map(X509Client::new),
             validator: config.validator,
-            store: RefCell::new(CertificateStore::from_iter(
-                config.certificates.into_iter().map(|c| c.into()),
-            )),
-            edges: RefCell::new(Edges::new()),
+            store: CertificateStore::from_iter(config.certificates.into_iter().map(|c| c.into())),
+            edges: Edges::new(),
         }
     }
 
     /// Find certificate path, returning [`Report`](crate::report::Report)
-    pub async fn find(self, target: crate::Certificate) -> X509PathFinderResult<Report> {
-        self.edges.borrow_mut().start(target.into());
+    pub async fn find(mut self, target: crate::Certificate) -> X509PathFinderResult<Report> {
+        self.edges.start(target.into());
         let start = Instant::now();
         let mut failures = vec![];
 
-        loop {
+        while let Some(edge) = self.edges.next() {
             if self.limit != Duration::ZERO && Instant::now() - start > self.limit {
                 return Err(X509PathFinderError::Error("limit exceeded".to_string()));
             }
 
-            // prevent RefCell reference held across await
-            let edge = match self.edges.borrow_mut().next() {
-                None => break,
-                Some(e) => e,
-            };
-
             if edge.as_ref() == &Edge::End {
-                let (path, origin) = self.edges.borrow().path(&edge);
+                let (path, origin) = self.edges.path(&edge);
                 match self
                     .validator
                     .validate(path.iter().map(|c| c.inner()).collect())?
@@ -106,11 +97,11 @@ where
                 }
             }
 
-            if self.edges.borrow().visited(edge.as_ref()) {
+            if self.edges.visited(edge.as_ref()) {
                 continue;
             }
 
-            self.edges.borrow_mut().visit(edge.clone());
+            self.edges.visit(edge.clone());
 
             self.next(edge).await?;
         }
@@ -122,7 +113,7 @@ where
         })
     }
 
-    async fn next(&self, edge: Rc<Edge>) -> X509PathFinderResult<()> {
+    async fn next(&mut self, edge: Rc<Edge>) -> X509PathFinderResult<()> {
         match edge.as_ref() {
             // edge is leaf certificate, search for issuer candidates
             Edge::Certificate(edge_certificate, _) => {
@@ -137,13 +128,10 @@ where
                         .map(|u| Edge::Url(u.clone(), edge_certificate.clone()).into())
                         .collect::<Vec<Rc<Edge>>>();
                     store_candidates.append(&mut aia_edges);
-                    self.edges
-                        .borrow_mut()
-                        .extend(edge.clone(), store_candidates);
+                    self.edges.extend(edge.clone(), store_candidates);
                     Ok(())
                 } else {
                     self.edges
-                        .borrow_mut()
                         .extend(edge.clone(), self.next_aia(edge_certificate.clone()));
                     Ok(())
                 }
@@ -151,7 +139,7 @@ where
             // edge is url, download certificates, search for issuer candidates
             Edge::Url(url, edge_certificate) => {
                 let url_edges = self.next_url(edge_certificate.as_ref(), url).await;
-                self.edges.borrow_mut().extend(edge, url_edges);
+                self.edges.extend(edge, url_edges);
                 Ok(())
             }
             // edge is end, stop search
@@ -159,44 +147,30 @@ where
         }
     }
 
-    // return non self-signed issuer candidates from store
+    // return issuer candidates from store
     fn next_store(&self, parent_certificate: Rc<Certificate>) -> Vec<Rc<Edge>> {
         self.store
-            .borrow()
             .issuers(parent_certificate.as_ref())
             .into_iter()
-            .filter_map(|candidate| {
-                // filter out self-signed
-                if !candidate.issued(candidate.as_ref()) {
-                    Some(Edge::Certificate(candidate.clone(), CertificateOrigin::Store).into())
-                } else {
-                    None
-                }
-            })
+            .map(|c| Edge::Certificate(c, CertificateOrigin::Store).into())
             .collect()
     }
 
     // download certificates, insert into store, return non self-signed issuer candidates
-    async fn next_url(&self, parent_certificate: &Certificate, url: &Url) -> Vec<Rc<Edge>> {
+    async fn next_url(&mut self, parent_certificate: &Certificate, url: &Url) -> Vec<Rc<Edge>> {
         let candidates = self
             .get_all(url)
             .await
             .unwrap_or_else(|_| vec![])
             .into_iter()
             .filter_map(|candidate| {
-                let candidate = self.store.borrow_mut().insert(candidate);
-                // filtering out self-signed
-                if candidate.issued(candidate.as_ref()) {
-                    None
-                } else if candidate.issued(parent_certificate) {
+                // filtering out self-signed and duplicates
+                self.store.insert(candidate).and_then(|candidate| {
                     // url is issuer, return as certificate edge
-                    Some(
-                        Edge::Certificate(candidate.clone(), CertificateOrigin::Url(url.clone()))
-                            .into(),
-                    )
-                } else {
-                    None
-                }
+                    candidate.issued(parent_certificate).then(|| {
+                        Edge::Certificate(candidate, CertificateOrigin::Url(url.clone())).into()
+                    })
+                })
             })
             .collect::<Vec<Rc<Edge>>>();
 
