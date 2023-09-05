@@ -38,11 +38,34 @@ impl Edges {
         self.edges.pop()
     }
 
+    // extend edge queue while preventing duplicates in path
     pub fn extend(&mut self, parent: Rc<Edge>, edges: Vec<Rc<Edge>>) {
+        let path_set = self.path_set(&parent);
+
         for child in edges.into_iter() {
+            // valid X509 paths can only use a certificate once
+            if let Edge::Certificate(child, _) = child.as_ref() {
+                if path_set.contains(child) {
+                    continue;
+                }
+            }
             self.edges.push(child.clone());
             self.parents.insert(child, parent.clone());
         }
+    }
+
+    fn path_set(&self, target: &Rc<Edge>) -> HashSet<Rc<Certificate>> {
+        let mut path = HashSet::new();
+
+        let mut current_edge = Some(target);
+        while let Some(edge) = current_edge {
+            if let Edge::Certificate(certificate, _) = edge.as_ref() {
+                path.insert(certificate.clone());
+            }
+            current_edge = self.parents.get(edge);
+        }
+
+        path
     }
 
     pub fn path(&self, target: &Rc<Edge>) -> (Vec<Rc<Certificate>>, Vec<CertificateOrigin>) {

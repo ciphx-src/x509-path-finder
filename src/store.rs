@@ -39,10 +39,6 @@ impl CertificateStore {
             .insert(certificate.clone())
             .then_some(certificate)
     }
-
-    pub fn into_set(self) -> BTreeSet<Rc<Certificate>> {
-        self.certificates
-    }
 }
 
 impl Default for CertificateStore {

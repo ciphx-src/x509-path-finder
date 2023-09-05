@@ -4,6 +4,7 @@ use crate::edge::{Edge, Edges};
 use crate::report::{CertificateOrigin, Found, Report, ValidationFailure};
 use crate::store::CertificateStore;
 use crate::{X509PathFinderError, X509PathFinderResult};
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 use std::vec;
@@ -78,20 +79,20 @@ where
                     CertificatePathValidation::Found => {
                         drop(self.edges);
 
-                        let mut store = self.store.into_set();
-                        for c in path.iter() {
-                            if store.contains(c) {
-                                store.remove(c);
-                            }
-                        }
-                        let store = store
+                        let path_set: HashSet<Rc<Certificate>> = HashSet::from_iter(path.clone());
+
+                        let store = self
+                            .store
                             .into_iter()
+                            .filter(|c| !path_set.contains(c))
                             .map(|c| {
                                 Rc::into_inner(c)
                                     .expect("all should be dropped")
                                     .into_inner()
                             })
                             .collect::<Vec<crate::Certificate>>();
+
+                        drop(path_set);
 
                         let path: Vec<crate::Certificate> = path
                             .into_iter()
@@ -138,15 +139,15 @@ where
             Edge::Certificate(edge_certificate, _) => {
                 let mut store_candidates = self.next_store(edge_certificate.clone());
 
-                // return issuer candidates from store or try aia
+                // queue issuer candidates from store or try aia
                 if !store_candidates.is_empty() {
-                    // append any aia edges
-                    let aia_urls = edge_certificate.aia();
-                    let mut aia_edges = aia_urls
-                        .iter()
-                        .map(|u| Edge::Url(u.clone(), edge_certificate.clone()).into())
-                        .collect::<Vec<Rc<Edge>>>();
-                    store_candidates.append(&mut aia_edges);
+                    // queue any aia edges
+                    store_candidates.extend(
+                        edge_certificate
+                            .aia()
+                            .iter()
+                            .map(|u| Edge::Url(u.clone(), edge_certificate.clone()).into()),
+                    );
                     self.edges.extend(edge.clone(), store_candidates);
                     Ok(())
                 } else {
@@ -155,7 +156,7 @@ where
                     Ok(())
                 }
             }
-            // edge is url, download certificates, search for issuer candidates
+            // edge is url, download certificates, queue issuer candidates
             Edge::Url(url, edge_certificate) => {
                 let url_edges = self.next_url(edge_certificate.as_ref(), url).await;
                 self.edges.extend(edge, url_edges);
