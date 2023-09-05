@@ -1,4 +1,3 @@
-use crate::api::Certificate;
 use std::fmt::{Debug, Display};
 
 /// Certificate path validation. Implement to customize behavior. Note: X509 certificate [path validation](https://datatracker.ietf.org/doc/html/rfc5280#section-6) is not
@@ -10,7 +9,7 @@ pub trait PathValidator {
     /// Validates `path`, returning results as [`CertificatePathValidation`](crate::api::validator::CertificatePathValidation)
     fn validate(
         &self,
-        path: &[Certificate],
+        path: Vec<&x509_cert::Certificate>,
     ) -> Result<CertificatePathValidation, Self::PathValidatorError>;
 }
 

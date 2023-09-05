@@ -1,7 +1,5 @@
 //! Certificate path search report
 
-use crate::api::Certificate;
-use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
 
@@ -20,27 +18,25 @@ pub struct Report {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Found {
     /// Discovered certificate path
-    pub path: Vec<Certificate>,
+    pub path: Vec<x509_cert::Certificate>,
     /// Certificate path origins
     pub origin: Vec<CertificateOrigin>,
 }
 
 /// Origins of each certificate found in path
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CertificateOrigin {
     /// Certificate used in [`X509PathFinder::find`](crate::find::X509PathFinder::find)
     Target,
     /// Certificate found in store
     Store,
     /// Certificate downloaded from AIA url
-    Url(Arc<Url>),
+    Url(Url),
 }
 
 /// Validation Failure
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ValidationFailure {
-    /// Path where validation failure occurred
-    pub path: Vec<Certificate>,
     /// Path origins where validation failure occurred
     pub origin: Vec<CertificateOrigin>,
     /// Human-readable reason for validation failure

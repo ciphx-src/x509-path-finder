@@ -9,9 +9,6 @@ async fn test_verifier() {
         .await
         .unwrap();
 
-    assert_eq!(2, certificates.len());
-    assert!(&certificates[1].issued(&certificates[0]));
-
     let root = load_material("vandelaybank.com.cer").await.unwrap();
     let root = RustlsCertificate(root);
 
@@ -19,6 +16,6 @@ async fn test_verifier() {
     store.add(&root).unwrap();
 
     let verifier = DefaultPathValidator::new(store);
-    let validate = verifier.validate(certificates.as_slice()).unwrap();
+    let validate = verifier.validate(certificates.iter().collect()).unwrap();
     assert!(matches!(validate, CertificatePathValidation::Found));
 }

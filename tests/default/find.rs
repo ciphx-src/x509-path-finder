@@ -19,14 +19,12 @@ async fn test_find() {
     store.add(&root).unwrap();
     let validator = DefaultPathValidator::new(store);
 
-    let mut search = X509PathFinder::new(
-        X509PathFinderConfiguration {
-            limit: Duration::default(),
-            aia: None,
-            validator,
-        },
-        vec![certificates[1].clone()],
-    );
+    let search = X509PathFinder::new(X509PathFinderConfiguration {
+        limit: Duration::default(),
+        aia: None,
+        validator,
+        certificates: vec![certificates[1].clone()],
+    });
 
     let found = search
         .find(certificates[0].clone())

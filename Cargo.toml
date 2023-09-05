@@ -16,6 +16,7 @@ exclude = ["/.github", "/.gitignore"]
 log = { version = "0.4.19" }
 bytes = { version = "1" }
 url = { version = "2.4.0" }
+sha2 = { version = "0.10.7" }
 openssl = { version = "0.10.56", features = ["vendored"], optional = true }
 rustls = { version = "0.21.7", features = ["dangerous_configuration"], optional = true }
 x509-cert = { version = "0.2.4", features = ["pem"] }

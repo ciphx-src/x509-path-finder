@@ -1,31 +1,28 @@
 use der::oid::db::rfc5280::{ID_AD_CA_ISSUERS, ID_PE_AUTHORITY_INFO_ACCESS};
-use der::{Decode, DecodeValue, Encode, Header, Reader};
+use der::{Decode, DecodeValue, Encode, Header, Length, Reader, Writer};
+use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
-use std::sync::Arc;
+use std::hash::{Hash, Hasher};
 use url::Url;
 use x509_cert::ext::pkix::name::GeneralName;
 use x509_cert::ext::pkix::AuthorityInfoAccessSyntax;
 
 #[derive(Clone, Debug)]
 pub struct Certificate {
-    inner: Arc<CertificateInner>,
-    ord: usize,
-}
-
-#[derive(Debug)]
-pub struct CertificateInner {
+    inner: x509_cert::Certificate,
     issuer: String,
     subject: String,
     aia: Vec<Url>,
-    der: Vec<u8>,
+    ord: usize,
+    hash: Vec<u8>,
 }
 
 impl Certificate {
     pub fn issued(&self, subject: &Self) -> bool {
-        self.inner.subject == subject.inner.issuer
+        self.subject == subject.issuer
     }
     pub fn aia(&self) -> &[Url] {
-        self.inner.aia.as_slice()
+        self.aia.as_slice()
     }
 
     fn parse_aia(certificate: &x509_cert::Certificate) -> Vec<Url> {
@@ -57,8 +54,12 @@ impl Certificate {
         }
     }
 
-    pub fn der(&self) -> &[u8] {
-        &self.inner.der
+    pub fn inner(&self) -> &x509_cert::Certificate {
+        &self.inner
+    }
+
+    pub fn into_inner(self) -> x509_cert::Certificate {
+        self.inner
     }
 
     pub fn set_ord(&mut self, ord: usize) {
@@ -66,26 +67,27 @@ impl Certificate {
     }
 }
 
+impl Encode for Certificate {
+    fn encoded_len(&self) -> der::Result<Length> {
+        self.inner.encoded_len()
+    }
+
+    fn encode(&self, encoder: &mut impl Writer) -> der::Result<()> {
+        self.inner.encode(encoder)
+    }
+}
+
 impl<'r> Decode<'r> for Certificate {
     fn decode<R: Reader<'r>>(reader: &mut R) -> der::Result<Self> {
         let header = Header::decode(reader)?;
-        let certificate = x509_cert::Certificate::decode_value(reader, header)?;
-        Ok(Self {
-            inner: CertificateInner {
-                issuer: certificate.tbs_certificate.issuer.to_string(),
-                subject: certificate.tbs_certificate.subject.to_string(),
-                aia: Self::parse_aia(&certificate),
-                der: certificate.to_der()?,
-            }
-            .into(),
-            ord: 0,
-        })
+        let inner = x509_cert::Certificate::decode_value(reader, header)?;
+        Ok(inner.into())
     }
 }
 
 impl PartialEq for Certificate {
     fn eq(&self, other: &Self) -> bool {
-        self.inner.der.eq(&other.inner.der)
+        self.inner.eq(&other.inner)
     }
 }
 
@@ -108,5 +110,26 @@ impl Ord for Certificate {
         }
 
         Ordering::Less
+    }
+}
+
+impl Hash for Certificate {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state)
+    }
+}
+
+impl From<x509_cert::Certificate> for Certificate {
+    fn from(inner: x509_cert::Certificate) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update(inner.signature.raw_bytes());
+        Self {
+            issuer: inner.tbs_certificate.issuer.to_string(),
+            subject: inner.tbs_certificate.subject.to_string(),
+            aia: Self::parse_aia(&inner),
+            inner,
+            ord: 0,
+            hash: hasher.finalize().to_vec(),
+        }
     }
 }

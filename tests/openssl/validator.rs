@@ -11,9 +11,6 @@ async fn test_verifier() {
         .await
         .unwrap();
 
-    assert_eq!(2, certificates.len());
-    assert!(&certificates[1].issued(&certificates[0]));
-
     let root = load_material("vandelaybank.com.cer").await.unwrap();
     let root = X509::from_der(&root).unwrap();
 
@@ -22,6 +19,6 @@ async fn test_verifier() {
     builder.set_flags(X509VerifyFlags::X509_STRICT).unwrap();
 
     let verifier = OpenSSLPathValidator::new(builder.build());
-    let validate = verifier.validate(certificates.as_slice()).unwrap();
+    let validate = verifier.validate(certificates.iter().collect()).unwrap();
     assert!(matches!(validate, CertificatePathValidation::Found));
 }
