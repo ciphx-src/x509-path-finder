@@ -149,6 +149,5 @@ The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to 
 ## TODO
 
 * Integration tests
-* Prevent issuer loops, same certificate multiple times in a path
 * Weighted path decisions
 * Benchmarking
