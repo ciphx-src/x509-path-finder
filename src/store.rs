@@ -35,9 +35,8 @@ impl CertificateStore {
         self.serial += 1;
         certificate.set_ord(self.serial);
         let certificate = Rc::new(certificate);
-        self.certificates
-            .insert(certificate.clone())
-            .then_some(certificate)
+        self.certificates.insert(certificate.clone());
+        Some(certificate)
     }
 }
 

@@ -184,7 +184,7 @@ where
             .unwrap_or_else(|_| vec![])
             .into_iter()
             .filter_map(|candidate| {
-                // filtering out self-signed and duplicates
+                // filtering out self-signed
                 self.store.insert(candidate).and_then(|candidate| {
                     // url is issuer, return as certificate edge
                     candidate.issued(parent_certificate).then(|| {
