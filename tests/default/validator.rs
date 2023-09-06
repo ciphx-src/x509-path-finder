@@ -4,7 +4,7 @@ use x509_path_finder::provided::validator::default::DefaultPathValidator;
 use x509_path_finder_material::{load_certificates, load_material};
 
 #[tokio::test]
-async fn test_verifier() {
+async fn test_validator() {
     let certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
         .await
         .unwrap();
@@ -15,7 +15,7 @@ async fn test_verifier() {
     let mut store = RootCertStore::empty();
     store.add(&root).unwrap();
 
-    let verifier = DefaultPathValidator::new(store);
-    let validate = verifier.validate(certificates.iter().collect()).unwrap();
+    let validator = DefaultPathValidator::new(store);
+    let validate = validator.validate(certificates.iter().collect()).unwrap();
     assert!(matches!(validate, CertificatePathValidation::Found));
 }

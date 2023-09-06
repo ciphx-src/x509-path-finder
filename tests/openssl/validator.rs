@@ -6,7 +6,7 @@ use x509_path_finder::provided::validator::openssl::OpenSSLPathValidator;
 use x509_path_finder_material::{load_certificates, load_material};
 
 #[tokio::test]
-async fn test_verifier() {
+async fn test_validator() {
     let certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
         .await
         .unwrap();
@@ -18,7 +18,7 @@ async fn test_verifier() {
     builder.add_cert(root).unwrap();
     builder.set_flags(X509VerifyFlags::X509_STRICT).unwrap();
 
-    let verifier = OpenSSLPathValidator::new(builder.build());
-    let validate = verifier.validate(certificates.iter().collect()).unwrap();
+    let validator = OpenSSLPathValidator::new(builder.build());
+    let validate = validator.validate(certificates.iter().collect()).unwrap();
     assert!(matches!(validate, CertificatePathValidation::Found));
 }
