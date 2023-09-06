@@ -1,16 +1,14 @@
+use der::Encode;
 use rustls::{Certificate as RustlsCertificate, RootCertStore};
 use x509_path_finder::api::{CertificatePathValidation, PathValidator};
 use x509_path_finder::provided::validator::default::DefaultPathValidator;
-use x509_path_finder_material::{load_certificates, load_material};
+use x509_path_finder_material::generate::CertificatePathGenerator;
 
 #[tokio::test]
 async fn test_validator() {
-    let certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
-        .await
-        .unwrap();
-
-    let root = load_material("vandelaybank.com.cer").await.unwrap();
-    let root = RustlsCertificate(root);
+    let mut certificates = CertificatePathGenerator::generate(8, "0").unwrap();
+    let root = certificates.remove(certificates.len() - 1);
+    let root = RustlsCertificate(root.to_der().unwrap());
 
     let mut store = RootCertStore::empty();
     store.add(&root).unwrap();

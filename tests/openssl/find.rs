@@ -10,7 +10,7 @@ use x509_path_finder_material::generate::CertificatePathGenerator;
 
 #[tokio::test]
 async fn test_find() {
-    let mut certificates = CertificatePathGenerator::generate(10, "0").unwrap();
+    let mut certificates = CertificatePathGenerator::generate(8, "0").unwrap();
     let root = certificates.remove(certificates.len() - 1);
     let expected = certificates.clone();
     let ee = certificates.remove(0);
@@ -37,8 +37,6 @@ async fn test_find() {
     assert_eq!(
         vec![
             CertificateOrigin::Target,
-            CertificateOrigin::Store,
-            CertificateOrigin::Store,
             CertificateOrigin::Store,
             CertificateOrigin::Store,
             CertificateOrigin::Store,
