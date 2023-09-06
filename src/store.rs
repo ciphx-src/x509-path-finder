@@ -1,4 +1,5 @@
 use crate::certificate::Certificate;
+use crate::report::CertificateOrigin;
 use std::collections::{btree_set, BTreeSet};
 use std::rc::Rc;
 
@@ -63,6 +64,7 @@ impl FromIterator<Certificate> for CertificateStore {
                 .filter_map(|c| (!c.issued(&c)).then_some(c))
                 .enumerate()
                 .map(|(i, mut c)| {
+                    c.set_origin(CertificateOrigin::Store);
                     c.set_ord(i);
                     c.into()
                 }),

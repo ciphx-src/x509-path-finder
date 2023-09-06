@@ -136,7 +136,7 @@ where
     async fn next(&mut self, edge: Rc<Edge>) -> X509PathFinderResult<()> {
         match edge.as_ref() {
             // edge is leaf certificate, search for issuer candidates
-            Edge::Certificate(edge_certificate, _) => {
+            Edge::Certificate(edge_certificate) => {
                 let mut store_candidates = self.next_store(edge_certificate.clone());
 
                 // queue issuer candidates from store or try aia
@@ -172,7 +172,7 @@ where
         self.store
             .issuers(parent_certificate.as_ref())
             .into_iter()
-            .map(|c| Edge::Certificate(c, CertificateOrigin::Store).into())
+            .map(|c| Edge::Certificate(c).into())
             .collect()
     }
 
@@ -187,9 +187,9 @@ where
                 // filtering out self-signed
                 self.store.insert(candidate).and_then(|candidate| {
                     // url is issuer, return as certificate edge
-                    candidate.issued(parent_certificate).then(|| {
-                        Edge::Certificate(candidate, CertificateOrigin::Url(url.clone())).into()
-                    })
+                    candidate
+                        .issued(parent_certificate)
+                        .then(|| Edge::Certificate(candidate).into())
                 })
             })
             .collect::<Vec<Rc<Edge>>>();
@@ -228,7 +228,11 @@ where
                 .get_all(url)
                 .await?
                 .into_iter()
-                .map(|c| c.into())
+                .map(|c| {
+                    let mut c = Certificate::from(c);
+                    c.set_origin(CertificateOrigin::Url(url.clone()));
+                    c
+                })
                 .collect())
         } else {
             Ok(vec![])

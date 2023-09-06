@@ -1,3 +1,4 @@
+use crate::report::CertificateOrigin;
 use der::oid::db::rfc5280::{ID_AD_CA_ISSUERS, ID_PE_AUTHORITY_INFO_ACCESS};
 use der::{Decode, DecodeValue, Encode, Header, Length, Reader, Writer};
 use sha2::{Digest, Sha256};
@@ -15,6 +16,7 @@ pub struct Certificate {
     aia: Vec<Url>,
     ord: usize,
     hash: Vec<u8>,
+    origin: CertificateOrigin,
 }
 
 impl Certificate {
@@ -64,6 +66,14 @@ impl Certificate {
 
     pub fn set_ord(&mut self, ord: usize) {
         self.ord = ord;
+    }
+
+    pub fn origin(&self) -> &CertificateOrigin {
+        &self.origin
+    }
+
+    pub fn set_origin(&mut self, origin: CertificateOrigin) {
+        self.origin = origin;
     }
 }
 
@@ -130,6 +140,7 @@ impl From<crate::Certificate> for Certificate {
             inner,
             ord: 0,
             hash: hasher.finalize().to_vec(),
+            origin: CertificateOrigin::Unknown,
         }
     }
 }
