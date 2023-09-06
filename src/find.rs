@@ -70,7 +70,7 @@ where
                 return Err(X509PathFinderError::Error("limit exceeded".to_string()));
             }
 
-            if edge.as_ref() == &Edge::End {
+            if edge == Edge::End {
                 let (path, origin) = self.edges.path(&edge);
                 match self
                     .validator
@@ -116,7 +116,7 @@ where
                 }
             }
 
-            if self.edges.visited(edge.as_ref()) {
+            if self.edges.visited(&edge) {
                 continue;
             }
 
@@ -133,8 +133,8 @@ where
         })
     }
 
-    async fn next(&mut self, edge: Rc<Edge>) -> X509PathFinderResult<()> {
-        match edge.as_ref() {
+    async fn next(&mut self, edge: Edge) -> X509PathFinderResult<()> {
+        match &edge {
             // edge is leaf certificate, search for issuer candidates
             Edge::Certificate(edge_certificate) => {
                 let mut store_candidates = self.next_store(edge_certificate.clone());
@@ -146,7 +146,7 @@ where
                         edge_certificate
                             .aia()
                             .iter()
-                            .map(|u| Edge::Url(u.clone(), edge_certificate.clone()).into()),
+                            .map(|u| Edge::Url(u.clone().into(), edge_certificate.clone())),
                     );
                     self.edges.extend(edge.clone(), store_candidates);
                     Ok(())
@@ -168,16 +168,16 @@ where
     }
 
     // return issuer candidates from store
-    fn next_store(&self, parent_certificate: Rc<Certificate>) -> Vec<Rc<Edge>> {
+    fn next_store(&self, parent_certificate: Rc<Certificate>) -> Vec<Edge> {
         self.store
             .issuers(parent_certificate.as_ref())
             .into_iter()
-            .map(|c| Edge::Certificate(c).into())
+            .map(Edge::Certificate)
             .collect()
     }
 
     // download certificates, insert into store, return non self-signed issuer candidates
-    async fn next_url(&mut self, parent_certificate: &Certificate, url: &Url) -> Vec<Rc<Edge>> {
+    async fn next_url(&mut self, parent_certificate: &Certificate, url: &Url) -> Vec<Edge> {
         let candidates = self
             .get_all(url)
             .await
@@ -189,36 +189,36 @@ where
                     // url is issuer, return as certificate edge
                     candidate
                         .issued(parent_certificate)
-                        .then(|| Edge::Certificate(candidate).into())
+                        .then(|| Edge::Certificate(candidate))
                 })
             })
-            .collect::<Vec<Rc<Edge>>>();
+            .collect::<Vec<Edge>>();
 
         // no issuer candidates, return end edge
         if candidates.is_empty() {
-            vec![Edge::End.into()]
+            vec![Edge::End]
         } else {
             candidates
         }
     }
 
     // if aia enabled, return aia edges
-    fn next_aia(&self, parent_certificate: Rc<Certificate>) -> Vec<Rc<Edge>> {
+    fn next_aia(&self, parent_certificate: Rc<Certificate>) -> Vec<Edge> {
         // aia disabled, return end edge
         if self.aia.is_none() {
-            return vec![Edge::End.into()];
+            return vec![Edge::End];
         }
 
         let aia_urls = parent_certificate.aia();
 
         // no aia urls found, return end edge
         if aia_urls.is_empty() {
-            return vec![Edge::End.into()];
+            return vec![Edge::End];
         }
 
         aia_urls
             .iter()
-            .map(|u| Edge::Url(u.clone(), parent_certificate.clone()).into())
+            .map(|u| Edge::Url(u.clone().into(), parent_certificate.clone()))
             .collect()
     }
 
