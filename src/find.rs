@@ -4,13 +4,19 @@ use crate::edge::{Edge, Edges};
 use crate::report::{CertificateOrigin, Found, Report, ValidationFailure};
 use crate::store::CertificateStore;
 use crate::{X509PathFinderError, X509PathFinderResult};
+#[cfg(test)]
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 use std::vec;
 use url::Url;
-use x509_client::provided::default::DefaultX509Iterator;
-use x509_client::{X509Client, X509ClientConfiguration, X509ClientResult};
+use x509_client::X509ClientResult;
+#[cfg(not(test))]
+use {
+    x509_client::provided::default::DefaultX509Iterator,
+    x509_client::{X509Client, X509ClientConfiguration},
+};
 
 /// [`X509PathFinder`](crate::X509PathFinder) configuration
 #[derive(Clone)]
@@ -21,7 +27,10 @@ where
     /// limit runtime of path search. Actual limit will be N * HTTP timeout. See `Reqwest` docs for setting HTTP connection timeout.
     pub limit: Duration,
     /// Optional client to find additional certificates by parsing URLs from [Authority Information Access](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) extensions
+    #[cfg(not(test))]
     pub aia: Option<X509ClientConfiguration>,
+    #[cfg(test)]
+    pub aia: Option<TestAIA>,
     /// [`PathValidator`](crate::api::PathValidator) implementation
     pub validator: &'v V,
     /// Bridge and cross signed-certificates to use for path finding
@@ -34,7 +43,10 @@ where
     V: PathValidator,
 {
     limit: Duration,
+    #[cfg(not(test))]
     aia: Option<X509Client<DefaultX509Iterator>>,
+    #[cfg(test)]
+    aia: Option<TestAIA>,
     validator: &'v V,
     store: CertificateStore,
     edges: Edges,
@@ -52,7 +64,10 @@ where
     {
         X509PathFinder {
             limit: config.limit,
+            #[cfg(not(test))]
             aia: config.aia.map(X509Client::new),
+            #[cfg(test)]
+            aia: config.aia,
             validator: config.validator,
             store: CertificateStore::from_iter(config.certificates.into_iter().map(|c| c.into())),
             edges: Edges::new(),
@@ -229,6 +244,7 @@ where
             .collect()
     }
 
+    #[cfg(not(test))]
     async fn get_all(&self, url: &Url) -> X509ClientResult<Vec<Certificate>> {
         if let Some(client) = &self.aia {
             Ok(client
@@ -245,4 +261,29 @@ where
             Ok(vec![])
         }
     }
+
+    #[cfg(test)]
+    async fn get_all(&self, url: &Url) -> X509ClientResult<Vec<Certificate>> {
+        if let Some(aia) = &self.aia {
+            if let Some(duration) = &aia.sleep {
+                std::thread::sleep(*duration);
+            }
+            return Ok(aia
+                .certificates
+                .get(url)
+                .map_or_else(std::vec::Vec::new, |c| {
+                    let mut c = Certificate::from(c.clone());
+                    c.set_origin(CertificateOrigin::Url(url.clone()));
+                    vec![c]
+                }));
+        }
+        Ok(vec![])
+    }
+}
+
+#[cfg(test)]
+#[derive(Clone)]
+pub struct TestAIA {
+    pub certificates: HashMap<Url, crate::Certificate>,
+    pub sleep: Option<Duration>,
 }
