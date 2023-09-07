@@ -7,7 +7,7 @@ use x509_path_finder_material::generate::CertificatePathGenerator;
 #[test]
 fn test_validator() {
     let mut certificates = CertificatePathGenerator::generate(8, "0").unwrap();
-    let root = certificates.remove(certificates.len() - 1);
+    let root = certificates.pop().unwrap();
     let root = RustlsCertificate(root.to_der().unwrap());
 
     let mut store = RootCertStore::empty();
@@ -15,5 +15,5 @@ fn test_validator() {
 
     let validator = DefaultPathValidator::new(store);
     let validate = validator.validate(certificates.iter().collect()).unwrap();
-    assert!(matches!(validate, CertificatePathValidation::Found));
+    assert_eq!(CertificatePathValidation::Found, validate);
 }

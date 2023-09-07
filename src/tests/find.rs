@@ -31,7 +31,7 @@ async fn test_self_signed() {
 #[tokio::test]
 async fn test_direct_path_no_aia() {
     let mut certificates = CertificatePathGenerator::generate(8, "0").unwrap();
-    let root = certificates.remove(certificates.len() - 1);
+    let root = certificates.pop().unwrap();
     let expected = certificates.clone();
     let ee = certificates.remove(0);
 

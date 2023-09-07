@@ -10,7 +10,7 @@ fn test_ord() {
         .into_iter()
         .map(|c| c.into())
         .collect::<Vec<Certificate>>();
-    certificates.remove(9);
+    certificates.pop().unwrap();
 
     let expected = certificates
         .clone()
@@ -40,7 +40,7 @@ fn test_issuer() {
         .into_iter()
         .map(|c| c.into())
         .collect::<Vec<Certificate>>();
-    certificates.remove(2);
+    certificates.pop().unwrap();
 
     let store = CertificateStore::from_iter(certificates.clone());
     assert_eq!(

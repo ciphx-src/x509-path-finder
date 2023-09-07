@@ -9,7 +9,7 @@ use x509_path_finder_material::generate::CertificatePathGenerator;
 #[test]
 fn test_validator() {
     let mut certificates = CertificatePathGenerator::generate(8, "0").unwrap();
-    let root = certificates.remove(certificates.len() - 1);
+    let root = certificates.pop().unwrap();
     let root = X509::from_der(root.to_der().unwrap().as_slice()).unwrap();
 
     let mut builder = X509StoreBuilder::new().unwrap();
@@ -18,5 +18,5 @@ fn test_validator() {
 
     let validator = OpenSSLPathValidator::new(builder.build());
     let validate = validator.validate(certificates.iter().collect()).unwrap();
-    assert!(matches!(validate, CertificatePathValidation::Found));
+    assert_eq!(CertificatePathValidation::Found, validate);
 }

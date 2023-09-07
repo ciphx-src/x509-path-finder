@@ -8,7 +8,7 @@ use x509_path_finder_material::generate::CertificatePathGenerator;
 #[test]
 fn generate() {
     let mut certificates = CertificatePathGenerator::generate(10, "0").unwrap();
-    let root = certificates.remove(certificates.len() - 1);
+    let root = certificates.pop().unwrap();
     let root = X509::from_der(root.to_der().unwrap().as_slice()).unwrap();
 
     let ee = certificates.remove(0);
