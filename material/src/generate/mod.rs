@@ -26,14 +26,25 @@ impl CertificatePathGenerator {
         depth: usize,
         authority_id: &str,
     ) -> CertificatePathGeneratorResult<Vec<x509_cert::Certificate>> {
+        let (certificates, _) = Self::generate_with_keys(depth, authority_id)?;
+        Ok(certificates)
+    }
+
+    pub fn generate_with_keys(
+        depth: usize,
+        authority_id: &str,
+    ) -> CertificatePathGeneratorResult<(Vec<x509_cert::Certificate>, Vec<Vec<u8>>)> {
         if depth < 1 {
             return Err(CertificatePathGeneratorError::Error(
                 "depth less than 1".to_string(),
             ));
         }
         let mut path = vec![];
+        let mut keys = vec![];
+
         let (mut last, mut last_key) = Self::build_root(authority_id)?;
         path.push(Certificate::from_der(last.to_der()?.as_slice())?);
+        keys.push(last_key.private_key_to_der()?);
 
         for name in 1..depth {
             (last, last_key) = if name == depth - 1 {
@@ -51,13 +62,14 @@ impl CertificatePathGenerator {
                     last_key.as_ref(),
                 )?
             };
-
             path.push(Certificate::from_der(last.to_der()?.as_slice())?);
+            keys.push(last_key.private_key_to_der()?);
         }
 
         path.reverse();
+        keys.reverse();
 
-        Ok(path)
+        Ok((path, keys))
     }
 
     fn build_root(name_str: &str) -> CertificatePathGeneratorResult<(X509, PKey<Private>)> {
@@ -239,12 +251,15 @@ impl CertificatePathGenerator {
         Ok((builder.build(), key))
     }
 
-    pub fn build_cross(
-        issuer: &X509Ref,
-        issuer_key: &PKeyRef<Private>,
-        target: &X509Ref,
-    ) -> CertificatePathGeneratorResult<X509> {
+    pub fn cross(
+        issuer: &x509_cert::Certificate,
+        issuer_key: &[u8],
+        target: &x509_cert::Certificate,
+    ) -> CertificatePathGeneratorResult<x509_cert::Certificate> {
         let mut builder = X509Builder::new()?;
+
+        let issuer = X509::from_der(issuer.to_der()?.as_ref())?;
+        let target = X509::from_der(target.to_der()?.as_ref())?;
 
         builder.set_version(2)?;
 
@@ -259,12 +274,13 @@ impl CertificatePathGenerator {
         builder.append_extension(BasicConstraints::new().critical().ca().build()?)?;
         builder.append_extension(KeyUsage::new().critical().key_cert_sign().build()?)?;
         builder.append_extension(
-            SubjectKeyIdentifier::new().build(&builder.x509v3_context(Some(issuer), None))?,
+            SubjectKeyIdentifier::new()
+                .build(&builder.x509v3_context(Some(issuer.as_ref()), None))?,
         )?;
         builder.append_extension(
             AuthorityKeyIdentifier::new()
                 .keyid(true)
-                .build(&builder.x509v3_context(Some(issuer), None))?,
+                .build(&builder.x509v3_context(Some(issuer.as_ref()), None))?,
         )?;
 
         builder.set_issuer_name(issuer.subject_name())?;
@@ -272,8 +288,12 @@ impl CertificatePathGenerator {
 
         builder.set_pubkey(target.public_key()?.as_ref())?;
 
-        builder.sign(issuer_key, MessageDigest::sha256())?;
-        Ok(builder.build())
+        let issuer_key = PKey::private_key_from_der(issuer_key)?;
+
+        builder.sign(issuer_key.as_ref(), MessageDigest::sha256())?;
+        Ok(x509_cert::Certificate::from_der(
+            builder.build().to_der()?.as_ref(),
+        )?)
     }
 
     fn gen_keypair() -> Result<PKey<Private>, ErrorStack> {

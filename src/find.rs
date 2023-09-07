@@ -148,6 +148,9 @@ where
                             .iter()
                             .map(|u| Edge::Url(u.clone().into(), edge_certificate.clone())),
                     );
+
+                    // reverse store edges so explored by store priority
+                    store_candidates.reverse();
                     self.edges.extend(edge.clone(), store_candidates);
                     Ok(())
                 } else {
@@ -192,6 +195,8 @@ where
                         .then(|| Edge::Certificate(candidate))
                 })
             })
+            // reverse certificates so explored in order returned from server
+            .rev()
             .collect::<Vec<Edge>>();
 
         // no issuer candidates, return end edge
@@ -219,6 +224,8 @@ where
         aia_urls
             .iter()
             .map(|u| Edge::Url(u.clone().into(), parent_certificate.clone()))
+            // reverse urls so explored in order presented in certificate AIA extension
+            .rev()
             .collect()
     }
 
