@@ -9,4 +9,3 @@ url = { version = "2.4.0" }
 openssl = { version = "0.10.56", features = ["vendored"] }
 x509-cert = { version = "0.2.4", features = ["pem"] }
 der = { version = "0.7.6", features = ["alloc", "derive", "flagset", "oid"] }
-x509-client = { version = "2.0.1" }
