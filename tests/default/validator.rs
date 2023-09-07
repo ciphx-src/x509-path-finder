@@ -4,8 +4,8 @@ use x509_path_finder::api::{CertificatePathValidation, PathValidator};
 use x509_path_finder::provided::validator::default::DefaultPathValidator;
 use x509_path_finder_material::generate::CertificatePathGenerator;
 
-#[tokio::test]
-async fn test_validator() {
+#[test]
+fn test_validator() {
     let mut certificates = CertificatePathGenerator::generate(8, "0").unwrap();
     let root = certificates.remove(certificates.len() - 1);
     let root = RustlsCertificate(root.to_der().unwrap());

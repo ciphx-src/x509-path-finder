@@ -6,8 +6,8 @@ use x509_path_finder::api::{CertificatePathValidation, PathValidator};
 use x509_path_finder::provided::validator::openssl::OpenSSLPathValidator;
 use x509_path_finder_material::generate::CertificatePathGenerator;
 
-#[tokio::test]
-async fn test_validator() {
+#[test]
+fn test_validator() {
     let mut certificates = CertificatePathGenerator::generate(8, "0").unwrap();
     let root = certificates.remove(certificates.len() - 1);
     let root = X509::from_der(root.to_der().unwrap().as_slice()).unwrap();

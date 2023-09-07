@@ -1,6 +1,8 @@
 use crate::generate::result::{CertificatePathGeneratorError, CertificatePathGeneratorResult};
-use der::Decode;
-use openssl::asn1::{Asn1Integer, Asn1Time};
+use der::asn1::Ia5String;
+use der::oid::db::rfc5280::ID_AD_CA_ISSUERS;
+use der::{Decode, Encode};
+use openssl::asn1::{Asn1Integer, Asn1Object, Asn1OctetString, Asn1Time};
 use openssl::bn::{BigNum, MsbOption};
 use openssl::ec::{EcGroup, EcKey};
 use openssl::error::ErrorStack;
@@ -10,7 +12,9 @@ use openssl::pkey::{PKey, PKeyRef, Private};
 use openssl::x509::extension::{
     AuthorityKeyIdentifier, BasicConstraints, KeyUsage, SubjectKeyIdentifier,
 };
-use openssl::x509::{X509Builder, X509NameBuilder, X509Ref, X509};
+use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509Ref, X509};
+use x509_cert::ext::pkix::name::GeneralName;
+use x509_cert::ext::pkix::{AccessDescription, AuthorityInfoAccessSyntax};
 use x509_cert::Certificate;
 
 pub mod result;
@@ -119,6 +123,36 @@ impl CertificatePathGenerator {
                 .build(&builder.x509v3_context(Some(issuer), None))?,
         )?;
 
+        let issuer_name = issuer
+            .subject_name()
+            .entries_by_nid(Nid::COMMONNAME)
+            .into_iter()
+            .next()
+            .map_or_else(
+                || "?".to_string(),
+                |n| {
+                    n.data()
+                        .as_utf8()
+                        .map_or_else(|_| "?".to_string(), |s| s.to_string())
+                },
+            );
+
+        builder.append_extension(X509Extension::new_from_der(
+            Asn1Object::from_str(Nid::INFO_ACCESS.short_name()?.as_ref())?.as_ref(),
+            false,
+            Asn1OctetString::new_from_bytes(
+                AuthorityInfoAccessSyntax(vec![AccessDescription {
+                    access_method: ID_AD_CA_ISSUERS,
+                    access_location: GeneralName::UniformResourceIdentifier(Ia5String::new(
+                        format!("test://{}", issuer_name).as_str(),
+                    )?),
+                }])
+                .to_der()?
+                .as_slice(),
+            )?
+            .as_ref(),
+        )?)?;
+
         builder.set_issuer_name(issuer.subject_name())?;
 
         let mut name = X509NameBuilder::new()?;
@@ -161,6 +195,36 @@ impl CertificatePathGenerator {
                 .build(&builder.x509v3_context(Some(issuer), None))?,
         )?;
 
+        let issuer_name = issuer
+            .subject_name()
+            .entries_by_nid(Nid::COMMONNAME)
+            .into_iter()
+            .next()
+            .map_or_else(
+                || "?".to_string(),
+                |n| {
+                    n.data()
+                        .as_utf8()
+                        .map_or_else(|_| "?".to_string(), |s| s.to_string())
+                },
+            );
+
+        builder.append_extension(X509Extension::new_from_der(
+            Asn1Object::from_str(Nid::INFO_ACCESS.short_name()?.as_ref())?.as_ref(),
+            false,
+            Asn1OctetString::new_from_bytes(
+                AuthorityInfoAccessSyntax(vec![AccessDescription {
+                    access_method: ID_AD_CA_ISSUERS,
+                    access_location: GeneralName::UniformResourceIdentifier(Ia5String::new(
+                        format!("test://{}", issuer_name).as_str(),
+                    )?),
+                }])
+                .to_der()?
+                .as_slice(),
+            )?
+            .as_ref(),
+        )?)?;
+
         builder.set_issuer_name(issuer.subject_name())?;
 
         let mut name = X509NameBuilder::new()?;
@@ -173,6 +237,43 @@ impl CertificatePathGenerator {
 
         builder.sign(issuer_key, MessageDigest::sha256())?;
         Ok((builder.build(), key))
+    }
+
+    pub fn build_cross(
+        issuer: &X509Ref,
+        issuer_key: &PKeyRef<Private>,
+        target: &X509Ref,
+    ) -> CertificatePathGeneratorResult<X509> {
+        let mut builder = X509Builder::new()?;
+
+        builder.set_version(2)?;
+
+        builder.set_not_before(Asn1Time::days_from_now(0)?.as_ref())?;
+        builder.set_not_after(Asn1Time::days_from_now(1)?.as_ref())?;
+
+        let mut serial = BigNum::new()?;
+        serial.rand(159, MsbOption::MAYBE_ZERO, false)?;
+
+        builder.set_serial_number(Asn1Integer::from_bn(serial.as_ref())?.as_ref())?;
+
+        builder.append_extension(BasicConstraints::new().critical().ca().build()?)?;
+        builder.append_extension(KeyUsage::new().critical().key_cert_sign().build()?)?;
+        builder.append_extension(
+            SubjectKeyIdentifier::new().build(&builder.x509v3_context(Some(issuer), None))?,
+        )?;
+        builder.append_extension(
+            AuthorityKeyIdentifier::new()
+                .keyid(true)
+                .build(&builder.x509v3_context(Some(issuer), None))?,
+        )?;
+
+        builder.set_issuer_name(issuer.subject_name())?;
+        builder.set_subject_name(target.subject_name())?;
+
+        builder.set_pubkey(target.public_key()?.as_ref())?;
+
+        builder.sign(issuer_key, MessageDigest::sha256())?;
+        Ok(builder.build())
     }
 
     fn gen_keypair() -> Result<PKey<Private>, ErrorStack> {
