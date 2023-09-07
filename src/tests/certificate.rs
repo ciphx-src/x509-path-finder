@@ -1,11 +1,10 @@
 use crate::certificate::Certificate;
 use url::Url;
-use x509_path_finder_material::load_certificates;
+use x509_path_finder_material::generate::CertificatePathGenerator;
 
-#[tokio::test]
-async fn test_issuers() {
-    let certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
-        .await
+#[test]
+fn test_issuers() {
+    let certificates = CertificatePathGenerator::generate(2, "issuers")
         .unwrap()
         .into_iter()
         .map(|c| c.into())
@@ -14,20 +13,16 @@ async fn test_issuers() {
     assert!(certificates[1].issued(&certificates[0]));
 }
 
-#[tokio::test]
-async fn test_aia() {
-    let certificates = load_certificates("kim@id.vandelaybank.com-fullchain.pem")
-        .await
+#[test]
+fn test_aia() {
+    let certificates = CertificatePathGenerator::generate(2, "aia")
         .unwrap()
         .into_iter()
         .map(|c| c.into())
         .collect::<Vec<Certificate>>();
 
     assert_eq!(
-        vec![Url::parse(
-            "https://identity.vandelaybank.com:4443/certificates/id.vandelaybank.com.cer"
-        )
-        .unwrap(),],
+        vec![Url::parse("test://aia").unwrap(),],
         certificates[0].aia()
     )
 }

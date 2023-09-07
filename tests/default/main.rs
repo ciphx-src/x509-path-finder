@@ -1,2 +1,1 @@
-mod find;
 mod validator;

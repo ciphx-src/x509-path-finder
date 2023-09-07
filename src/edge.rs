@@ -8,16 +8,16 @@ use url::Url;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Edge {
-    Certificate(Rc<Certificate>, CertificateOrigin),
-    Url(Url, Rc<Certificate>),
+    Certificate(Rc<Certificate>),
+    Url(Rc<Url>, Rc<Certificate>),
     End,
 }
 
 #[derive(Clone)]
 pub struct Edges {
-    visited: HashSet<Rc<Edge>>,
-    parents: HashMap<Rc<Edge>, Rc<Edge>>,
-    edges: Vec<Rc<Edge>>,
+    visited: HashSet<Edge>,
+    parents: HashMap<Edge, Edge>,
+    edges: Vec<Edge>,
 }
 
 impl Edges {
@@ -29,22 +29,22 @@ impl Edges {
         }
     }
 
-    pub fn start(&mut self, certificate: Certificate) {
-        self.edges
-            .push(Edge::Certificate(certificate.into(), CertificateOrigin::Target).into())
+    pub fn start(&mut self, mut certificate: Certificate) {
+        certificate.set_origin(CertificateOrigin::Target);
+        self.edges.push(Edge::Certificate(certificate.into()))
     }
 
-    pub fn next(&mut self) -> Option<Rc<Edge>> {
+    pub fn next(&mut self) -> Option<Edge> {
         self.edges.pop()
     }
 
     // extend edge queue while preventing duplicates in path
-    pub fn extend(&mut self, parent: Rc<Edge>, edges: Vec<Rc<Edge>>) {
+    pub fn extend(&mut self, parent: Edge, edges: Vec<Edge>) {
         let path_set = self.path_set(&parent);
 
         for child in edges.into_iter() {
             // valid X509 paths can only use a certificate once
-            if let Edge::Certificate(child, _) = child.as_ref() {
+            if let Edge::Certificate(child) = &child {
                 if path_set.contains(child) {
                     continue;
                 }
@@ -54,12 +54,12 @@ impl Edges {
         }
     }
 
-    fn path_set(&self, target: &Rc<Edge>) -> HashSet<Rc<Certificate>> {
+    fn path_set(&self, target: &Edge) -> HashSet<Rc<Certificate>> {
         let mut path = HashSet::new();
 
         let mut current_edge = Some(target);
         while let Some(edge) = current_edge {
-            if let Edge::Certificate(certificate, _) = edge.as_ref() {
+            if let Edge::Certificate(certificate) = edge {
                 path.insert(certificate.clone());
             }
             current_edge = self.parents.get(edge);
@@ -68,15 +68,15 @@ impl Edges {
         path
     }
 
-    pub fn path(&self, target: &Rc<Edge>) -> (Vec<Rc<Certificate>>, Vec<CertificateOrigin>) {
+    pub fn path(&self, target: &Edge) -> (Vec<Rc<Certificate>>, Vec<CertificateOrigin>) {
         let mut path = vec![];
         let mut path_origin = vec![];
 
         let mut current_edge = Some(target);
         while let Some(edge) = current_edge {
-            if let Edge::Certificate(certificate, origin) = edge.as_ref() {
+            if let Edge::Certificate(certificate) = &edge {
                 path.push(certificate.clone());
-                path_origin.push(origin.clone());
+                path_origin.push(certificate.origin().clone());
             }
             current_edge = self.parents.get(edge);
         }
@@ -85,7 +85,7 @@ impl Edges {
         (path, path_origin)
     }
 
-    pub fn visit(&mut self, edge: Rc<Edge>) {
+    pub fn visit(&mut self, edge: Edge) {
         self.visited.insert(edge);
     }
 

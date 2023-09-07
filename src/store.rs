@@ -1,4 +1,5 @@
 use crate::certificate::Certificate;
+use crate::report::CertificateOrigin;
 use std::collections::{btree_set, BTreeSet};
 use std::rc::Rc;
 
@@ -35,9 +36,8 @@ impl CertificateStore {
         self.serial += 1;
         certificate.set_ord(self.serial);
         let certificate = Rc::new(certificate);
-        self.certificates
-            .insert(certificate.clone())
-            .then_some(certificate)
+        self.certificates.insert(certificate.clone());
+        Some(certificate)
     }
 }
 
@@ -64,6 +64,7 @@ impl FromIterator<Certificate> for CertificateStore {
                 .filter_map(|c| (!c.issued(&c)).then_some(c))
                 .enumerate()
                 .map(|(i, mut c)| {
+                    c.set_origin(CertificateOrigin::Store);
                     c.set_ord(i);
                     c.into()
                 }),

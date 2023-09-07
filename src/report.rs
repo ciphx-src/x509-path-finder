@@ -28,6 +28,8 @@ pub struct Found {
 /// Origins of each certificate found in path
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CertificateOrigin {
+    #[doc(hidden)]
+    Unknown,
     /// Certificate used in [`X509PathFinder::find`](crate::find::X509PathFinder::find)
     Target,
     /// Certificate found in store
