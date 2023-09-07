@@ -360,3 +360,84 @@ async fn test_direct_path_partial_aia() {
         found.origin
     );
 }
+
+/*
+
+https://www.rfc-editor.org/rfc/rfc4158#section-5.2
+
+5.2.  Loop Detection
+
+   In a non-hierarchical PKI structure, a path-building algorithm may
+   become caught in a loop without finding an existing path.  Consider
+   the example below:
+
+             +----+
+             | TA |
+             +----+
+               |
+               |
+             +---+      +---+
+             | A |    ->| Z |
+             +---+   /  +---+
+               |    /     |
+               |   /      |
+               V  /       V
+             +---+      +---+
+             | B |<-----| Y |
+             +---+      +---+
+               |
+               |
+               V
+             +--------+
+             | Target |
+             +--------+
+
+      Figure 15 - Loop Example
+ */
+#[tokio::test]
+async fn escape_path_loop() {
+    let (mut certificates, mut keys) =
+        CertificatePathGenerator::generate_with_keys(4, "authority").unwrap();
+    let ta = certificates.pop().unwrap();
+    let _ta_key = keys.pop().unwrap();
+    let a = certificates.pop().unwrap();
+    let a_key = keys.pop().unwrap();
+    let b = certificates.pop().unwrap();
+    let b_key = keys.pop().unwrap();
+    let target = certificates.pop().unwrap();
+    let _target_key = keys.pop().unwrap();
+
+    let z = CertificatePathGenerator::cross(&b, &b_key, &a).unwrap();
+    let z_key = a_key.clone();
+    let y = CertificatePathGenerator::cross(&z, &z_key, &a).unwrap();
+
+    // path
+    assert_eq!(ta.tbs_certificate.subject, a.tbs_certificate.issuer);
+    assert_eq!(a.tbs_certificate.subject, b.tbs_certificate.issuer);
+    assert_eq!(b.tbs_certificate.subject, target.tbs_certificate.issuer);
+
+    // loop
+    assert_eq!(b.tbs_certificate.subject, z.tbs_certificate.issuer);
+    assert_eq!(z.tbs_certificate.subject, y.tbs_certificate.issuer);
+    assert_eq!(y.tbs_certificate.subject, b.tbs_certificate.issuer);
+
+    let validator = TestPathValidator::new(vec![ta]);
+
+    let search = X509PathFinder::new(X509PathFinderConfiguration {
+        limit: Duration::default(),
+        aia: None,
+        validator: &validator,
+        certificates: vec![a.clone(), b.clone()],
+    });
+
+    search.find(target.clone()).await.unwrap().found.unwrap();
+
+    let search = X509PathFinder::new(X509PathFinderConfiguration {
+        limit: Duration::default(),
+        aia: None,
+        validator: &validator,
+        certificates: vec![z, y, a, b],
+    });
+
+    search.find(target).await.unwrap().found.unwrap();
+}

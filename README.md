@@ -20,12 +20,16 @@ The complexity of the path search is constrained by three factors:
 2. Number of certificates it can find and download by following [AIA](https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.2.1) URLs
 3. An arbitrary time limit
 
-When evaluating a path candidate for validation, X509 Path Finder is implementation-agnostic. Once it finds a path that has terminated, it presents it to be validated by a backend authority. If the authority validates the path, the search halts and the path is returned.
+When evaluating a path candidate for validation, X509 Path Finder is implementation-agnostic. Once it finds a path that has terminated, it presents it to be validated by a backend authority. If the authority validates the path, the search halts and the path is returned. If the path is rejected, the search continues.
 
-X509 Path Finder provides two validators:
+X509 Path Finder provides two [`PathValidator`](crate::api::PathValidator) implementations:
 
 1. [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator) - implemented with [RustCrypto](https://github.com/RustCrypto) and [Rustls](https://github.com/rustls/rustls), available by default.
 2. [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) - implemented with [Rust OpenSSL](https://docs.rs/openssl/latest/openssl/), available with the `openssl` feature flag
+
+### WARNING
+
+Implementing [`PathValidator`](crate::api::PathValidator) itself is trivial, but safe [X509 path validation](https://datatracker.ietf.org/doc/html/rfc5280#section-6) is not. Engineers are encouraged to use a trusted X509 path validator for the foundation of their  [`PathValidator`](crate::api::PathValidator) implementations, and stack business logic on top.
 
 ## Usage
 
@@ -33,14 +37,14 @@ By default, the provided [DefaultPathValidator](crate::provided::validator::defa
 
 ````text
 [dependencies]
-x509_path_finder = { version = "0.5"] }
+x509_path_finder = { version = "*"] }
 ````
 
 Enable the `openssl` feature for access to the provided [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) validator.
 
 ````text
 [dependencies]
-x509_path_finder = { version = "0.5", features = ["openssl"] }
+x509_path_finder = { version = "*", features = ["openssl"] }
 ````
 
 
@@ -120,7 +124,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 
 The [`Found`](crate::report::Found) struct contains following fields:
 
-* path - the discovered path, a vec of [`Certificate`](crate::Certificate)
+* path - the discovered path, a vec of [`Certificate`](crate::Certificate) The path includes the target certificate. Per [RFC 5246](https://datatracker.ietf.org/doc/html/rfc5246#section-7.4.2), the path is ordered starting with the target, toward the trust anchor.
 * origin - the path [`CertificateOrigin`](crate::report::CertificateOrigin) 
 
 #### CertificateOrigin
@@ -148,6 +152,12 @@ The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to 
 
 ## TODO
 
-* Integration tests
-* Weighted path decisions
+Ordered by priority:
+
+* Deeper integration tests
 * Benchmarking
+* Cache issuer <-> subject mapping while building path
+* Ignore invalid certificates on ingest, rather than wait for [`PathValidator`](crate::api::PathValidator) to reject the entire path candidate
+* Parallelize AIA downloads
+* In `Edge`, consider [`SlotMap`](https://docs.rs/slotmap/latest/slotmap/struct.SlotMap.html) keys + [`HashMap`](https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html) guard over `Rc<Certificate>`
+* Weighted path decisions
