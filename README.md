@@ -124,7 +124,7 @@ The returning [`Report`](crate::report::Report) contains the following fields:
 
 The [`Found`](crate::report::Found) struct contains following fields:
 
-* path - the discovered path, a vec of [`Certificate`](crate::Certificate)
+* path - the discovered path, a vec of [`Certificate`](crate::Certificate) The path includes the target certificate. Per [RFC 5246](https://datatracker.ietf.org/doc/html/rfc5246#section-7.4.2), the path is ordered starting with the target, toward the trust anchor.
 * origin - the path [`CertificateOrigin`](crate::report::CertificateOrigin) 
 
 #### CertificateOrigin
@@ -152,9 +152,12 @@ The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to 
 
 ## TODO
 
-* Integration tests
-* Weighted path decisions
+Ordered by priority:
+
+* Deeper integration tests
 * Benchmarking
-* Parallelize AIA downloads
+* Cache issuer <-> subject mapping while building path
 * Ignore invalid certificates on ingest, rather than wait for [`PathValidator`](crate::api::PathValidator) to reject the entire path candidate
-* Explore [slotmap](https://docs.rs/slotmap/latest/slotmap/) indices over `Rc<Certificate>`
+* Parallelize AIA downloads
+* In `Edge`, consider [`SlotMap`](https://docs.rs/slotmap/latest/slotmap/struct.SlotMap.html) keys + [`HashMap`](https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html) guard over `Rc<Certificate>`
+* Weighted path decisions
