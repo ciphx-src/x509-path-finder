@@ -6,8 +6,7 @@ use crate::store::CertificateStore;
 use crate::{X509PathFinderError, X509PathFinderResult};
 #[cfg(test)]
 use std::collections::HashMap;
-use std::collections::HashSet;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::vec;
 use url::Url;
@@ -20,7 +19,7 @@ use {
 
 /// [`X509PathFinder`](crate::X509PathFinder) configuration
 #[derive(Clone)]
-pub struct X509PathFinderConfiguration<'v, V>
+pub struct X509PathFinderConfiguration<V>
 where
     V: PathValidator,
 {
@@ -32,13 +31,13 @@ where
     #[cfg(test)]
     pub aia: Option<TestAIA>,
     /// [`PathValidator`](crate::api::PathValidator) implementation
-    pub validator: &'v V,
+    pub validator: V,
     /// Bridge and cross signed-certificates to use for path finding
-    pub certificates: Vec<crate::Certificate>,
+    pub certificates: Vec<Arc<crate::Certificate>>,
 }
 
 /// X509 Path Finder
-pub struct X509PathFinder<'v, V>
+pub struct X509PathFinder<V>
 where
     V: PathValidator,
 {
@@ -47,18 +46,18 @@ where
     aia: Option<X509Client<DefaultX509Iterator>>,
     #[cfg(test)]
     aia: Option<TestAIA>,
-    validator: &'v V,
+    validator: V,
     store: CertificateStore,
     edges: Edges,
 }
 
-impl<'v, V> X509PathFinder<'v, V>
+impl<V> X509PathFinder<V>
 where
     V: PathValidator,
     X509PathFinderError: From<<V as PathValidator>::PathValidatorError>,
 {
     /// Instantiate new X509PathFinder with configuration
-    pub fn new(config: X509PathFinderConfiguration<'v, V>) -> Self
+    pub fn new(config: X509PathFinderConfiguration<V>) -> Self
     where
         X509PathFinderError: From<der::Error>,
     {
@@ -75,7 +74,11 @@ where
     }
 
     /// Find certificate path, returning [`Report`](crate::report::Report)
-    pub async fn find(mut self, target: crate::Certificate) -> X509PathFinderResult<Report> {
+    pub async fn find<I: Into<Arc<crate::Certificate>>>(
+        &mut self,
+        target: I,
+    ) -> X509PathFinderResult<Report> {
+        let target: Arc<crate::Certificate> = target.into();
         self.edges.start(target.into());
         let start = Instant::now();
         let mut failures = vec![];
@@ -89,44 +92,21 @@ where
                 let (path, origin) = self.edges.path(&edge);
                 match self
                     .validator
-                    .validate(path.iter().map(|c| c.inner()).collect())?
+                    .validate(path.iter().map(|c| c.as_ref()).collect())?
                 {
                     CertificatePathValidation::Found => {
-                        drop(self.edges);
-
-                        let path_set: HashSet<Rc<Certificate>> = HashSet::from_iter(path.clone());
-
-                        let store = self
-                            .store
-                            .into_iter()
-                            .filter(|c| !path_set.contains(c))
-                            .map(|c| {
-                                Rc::into_inner(c)
-                                    .expect("all should be dropped")
-                                    .into_inner()
-                            })
-                            .collect::<Vec<crate::Certificate>>();
-
-                        drop(path_set);
-
-                        let path: Vec<crate::Certificate> = path
-                            .into_iter()
-                            .map(|c| {
-                                Rc::into_inner(c)
-                                    .expect("all should be dropped")
-                                    .into_inner()
-                            })
-                            .collect();
-
                         return Ok(Report {
                             found: Some(Found { path, origin }),
                             duration: Instant::now() - start,
                             failures,
-                            store,
                         });
                     }
                     CertificatePathValidation::NotFound(reason) => {
-                        failures.push(ValidationFailure { origin, reason });
+                        failures.push(ValidationFailure {
+                            path,
+                            origin,
+                            reason,
+                        });
                     }
                 }
             }
@@ -144,7 +124,6 @@ where
             found: None,
             duration: Instant::now() - start,
             failures,
-            store: vec![],
         })
     }
 
@@ -186,7 +165,7 @@ where
     }
 
     // return issuer candidates from store
-    fn next_store(&self, parent_certificate: Rc<Certificate>) -> Vec<Edge> {
+    fn next_store(&self, parent_certificate: Arc<Certificate>) -> Vec<Edge> {
         self.store
             .issuers(parent_certificate.as_ref())
             .into_iter()
@@ -223,7 +202,7 @@ where
     }
 
     // if aia enabled, return aia edges
-    fn next_aia(&self, parent_certificate: Rc<Certificate>) -> Vec<Edge> {
+    fn next_aia(&self, parent_certificate: Arc<Certificate>) -> Vec<Edge> {
         // aia disabled, return end edge
         if self.aia.is_none() {
             return vec![Edge::End];
@@ -252,7 +231,7 @@ where
                 .await?
                 .into_iter()
                 .map(|c| {
-                    let mut c = Certificate::from(c);
+                    let mut c = Certificate::from(Arc::new(c));
                     c.set_origin(CertificateOrigin::Url(url.clone()));
                     c
                 })
@@ -284,6 +263,6 @@ where
 #[cfg(test)]
 #[derive(Clone)]
 pub struct TestAIA {
-    pub certificates: HashMap<Url, crate::Certificate>,
+    pub certificates: HashMap<Url, Arc<crate::Certificate>>,
     pub sleep: Option<Duration>,
 }

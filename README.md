@@ -24,7 +24,7 @@ When evaluating a path candidate for validation, X509 Path Finder is implementat
 
 X509 Path Finder provides two [`PathValidator`](crate::api::PathValidator) implementations:
 
-1. [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator) - implemented with [RustCrypto](https://github.com/RustCrypto) and [Rustls](https://github.com/rustls/rustls), available by default.
+1. [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator) - implemented with [rustls-webpki](https://github.com/rustls/webpki), available by default.
 2. [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) - implemented with [Rust OpenSSL](https://docs.rs/openssl/latest/openssl/), available with the `openssl` feature flag
 
 ### WARNING
@@ -52,31 +52,27 @@ x509_path_finder = { version = "*", features = ["openssl"] }
 
 ```` rust no_run
 
-    use rustls::{Certificate as RustlsCertificate, RootCertStore};
+    use webpki::{KeyUsage, TrustAnchor};
+    use std::sync::Arc;
     use std::time::Duration;
     use x509_path_finder::provided::validator::default::DefaultPathValidator;
     use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration};
 
     async fn test_find(
         root: Vec<u8>,
-        ic: Vec<x509_path_finder::Certificate>,
+        ic: Vec<Arc<x509_path_finder::Certificate>>,
         ee: x509_path_finder::Certificate,
     ) -> Result<(), x509_path_finder::X509PathFinderError> {
-        // create Rustls store
-        let mut store = RootCertStore::empty();
-
-        // add root certificate to store
-        let root = RustlsCertificate(root);
-        store.add(&root).unwrap();
-
-        // instantiate default validator
-        let validator = DefaultPathValidator::new(store);
+        // instantiate default validator        
+        let root = TrustAnchor::try_from_cert_der(root.as_slice()).unwrap();  
+        let algorithms = &[&webpki::ECDSA_P256_SHA256];
+        let validator = DefaultPathValidator::new(algorithms, vec![root], KeyUsage::client_auth(), &[]);
 
         // instantiate the finder
-        let search = X509PathFinder::new(X509PathFinderConfiguration {
+        let mut search = X509PathFinder::new(X509PathFinderConfiguration {
             limit: Duration::default(),
             aia: None,
-            validator: &validator,
+            validator,
             certificates: ic,
         });
 
@@ -86,6 +82,9 @@ x509_path_finder = { version = "*", features = ["openssl"] }
         // path has two certificates
         assert_eq!(2, found.path.len());
 
+        // Found is also an iterator over path
+        assert_eq!(2, found.into_iter().count());
+        
         Ok(())
     }
 ````
@@ -127,19 +126,24 @@ The [`Found`](crate::report::Found) struct contains following fields:
 * path - the discovered path, a vec of [`Certificate`](crate::Certificate) The path includes the target certificate. Per [RFC 5246](https://datatracker.ietf.org/doc/html/rfc5246#section-7.4.2), the path is ordered starting with the target, toward the trust anchor.
 * origin - the path [`CertificateOrigin`](crate::report::CertificateOrigin) 
 
+[`Found`](crate::report::Found) is also an iterator over references of members of `path`.
+
 #### CertificateOrigin
 [`CertificateOrigin`](crate::report::CertificateOrigin) is an enum that describes the origin of each certificate. Can be one of:
 
-1. `Target`: the initial certificate when calling [`X509PathFinder::find`](crate::X509PathFinder::find).
-2. `Store`: certificate was found in the store
-3. `Url`: certificate was downloaded from a URL (AIA)
+* `Target`: the initial certificate when calling [`X509PathFinder::find`](crate::X509PathFinder::find).
+* `Store`: certificate was found in the store
+* `Url`: certificate was downloaded from a URL (AIA)
 
 #### ValidateFailure
 
 [`ValidationFailure`](crate::report::ValidationFailure) stores any validation failures. Validation failures can occur even though a valid certificate path was eventually discovered. `ValidateFailure` contains the following fields:
 
-1. `origin`: the [`CertificateOrigin`](crate::report::CertificateOrigin) of where the validation error occurred
-2. `reason`: human-readable reason for the failure
+* `path` - Vec path of [`Certificate`](crate::Certificate) where the validation error occurred
+* `origin`: the [`CertificateOrigin`](crate::report::CertificateOrigin) of where the validation error occurred
+* `reason`: human-readable reason for the failure
+
+[`ValidationFailure`](crate::report::ValidationFailure) is also an iterator over references of members of `path`.
 
 ## API
 
@@ -147,7 +151,7 @@ The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to 
 
 ### Implementations
 
-* [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator)- validates path with [Rustls](https://github.com/rustls/rustls)
+* [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator)- validates path with [rustls-webpki](https://github.com/rustls/webpki)
 * [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator)- validates path with [OpenSSL](https://docs.rs/openssl/latest/openssl/)
 
 ## TODO
@@ -159,5 +163,4 @@ Ordered by priority:
 * Cache issuer <-> subject mapping while building path
 * Ignore invalid certificates on ingest, rather than wait for [`PathValidator`](crate::api::PathValidator) to reject the entire path candidate
 * Parallelize AIA downloads
-* In `Edge`, consider [`SlotMap`](https://docs.rs/slotmap/latest/slotmap/struct.SlotMap.html) keys + [`HashMap`](https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html) guard over `Rc<Certificate>`
 * Weighted path decisions

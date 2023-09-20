@@ -1,6 +1,6 @@
 use crate::certificate::Certificate;
 use crate::store::CertificateStore;
-use std::rc::Rc;
+use std::sync::Arc;
 use x509_path_finder_material::generate::CertificatePathGenerator;
 
 #[test]
@@ -8,7 +8,7 @@ fn test_ord() {
     let mut certificates = CertificatePathGenerator::generate(10, "issuers")
         .unwrap()
         .into_iter()
-        .map(|c| c.into())
+        .map(|c| Arc::new(c).into())
         .collect::<Vec<Certificate>>();
     certificates.pop().unwrap();
 
@@ -16,7 +16,7 @@ fn test_ord() {
         .clone()
         .into_iter()
         .map(|c| c.into())
-        .collect::<Vec<Rc<Certificate>>>();
+        .collect::<Vec<Arc<Certificate>>>();
 
     let mut store = CertificateStore::from_iter(certificates.clone());
     store.insert(certificates[0].clone());
@@ -29,7 +29,7 @@ fn test_ord() {
 
     assert_eq!(
         expected,
-        store.into_iter().collect::<Vec<Rc<Certificate>>>()
+        store.into_iter().collect::<Vec<Arc<Certificate>>>()
     );
 }
 
@@ -38,13 +38,13 @@ fn test_issuer() {
     let mut certificates = CertificatePathGenerator::generate(3, "issuers")
         .unwrap()
         .into_iter()
-        .map(|c| c.into())
+        .map(|c| Arc::new(c).into())
         .collect::<Vec<Certificate>>();
     certificates.pop().unwrap();
 
     let store = CertificateStore::from_iter(certificates.clone());
     assert_eq!(
-        vec![Rc::new(certificates[1].clone())],
+        vec![Arc::new(certificates[1].clone())],
         store.issuers(&certificates[0])
     );
 
