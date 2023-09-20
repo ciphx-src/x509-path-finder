@@ -4,13 +4,14 @@ use der::{Decode, DecodeValue, Encode, Header, Length, Reader, Writer};
 use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 use url::Url;
 use x509_cert::ext::pkix::name::GeneralName;
 use x509_cert::ext::pkix::AuthorityInfoAccessSyntax;
 
 #[derive(Clone, Debug)]
 pub struct Certificate {
-    inner: crate::Certificate,
+    inner: Arc<crate::Certificate>,
     issuer: String,
     subject: String,
     aia: Vec<Url>,
@@ -56,12 +57,8 @@ impl Certificate {
         }
     }
 
-    pub fn inner(&self) -> &crate::Certificate {
+    pub fn inner(&self) -> &Arc<crate::Certificate> {
         &self.inner
-    }
-
-    pub fn into_inner(self) -> crate::Certificate {
-        self.inner
     }
 
     pub fn set_ord(&mut self, ord: usize) {
@@ -90,7 +87,7 @@ impl Encode for Certificate {
 impl<'r> Decode<'r> for Certificate {
     fn decode<R: Reader<'r>>(reader: &mut R) -> der::Result<Self> {
         let header = Header::decode(reader)?;
-        let inner = crate::Certificate::decode_value(reader, header)?;
+        let inner = Arc::new(crate::Certificate::decode_value(reader, header)?);
         Ok(inner.into())
     }
 }
@@ -129,8 +126,8 @@ impl Hash for Certificate {
     }
 }
 
-impl From<crate::Certificate> for Certificate {
-    fn from(inner: crate::Certificate) -> Self {
+impl From<Arc<crate::Certificate>> for Certificate {
+    fn from(inner: Arc<crate::Certificate>) -> Self {
         let mut hasher = Sha256::new();
         hasher.update(inner.signature.raw_bytes());
         Self {

@@ -53,13 +53,14 @@ x509_path_finder = { version = "*", features = ["openssl"] }
 ```` rust no_run
 
     use rustls::{Certificate as RustlsCertificate, RootCertStore};
+    use std::sync::Arc;
     use std::time::Duration;
     use x509_path_finder::provided::validator::default::DefaultPathValidator;
     use x509_path_finder::{X509PathFinder, X509PathFinderConfiguration};
 
     async fn test_find(
         root: Vec<u8>,
-        ic: Vec<x509_path_finder::Certificate>,
+        ic: Vec<Arc<x509_path_finder::Certificate>>,
         ee: x509_path_finder::Certificate,
     ) -> Result<(), x509_path_finder::X509PathFinderError> {
         // create Rustls store
@@ -73,10 +74,10 @@ x509_path_finder = { version = "*", features = ["openssl"] }
         let validator = DefaultPathValidator::new(store);
 
         // instantiate the finder
-        let search = X509PathFinder::new(X509PathFinderConfiguration {
+        let mut search = X509PathFinder::new(X509PathFinderConfiguration {
             limit: Duration::default(),
             aia: None,
-            validator: &validator,
+            validator,
             certificates: ic,
         });
 
@@ -86,6 +87,9 @@ x509_path_finder = { version = "*", features = ["openssl"] }
         // path has two certificates
         assert_eq!(2, found.path.len());
 
+        // Found is also an iterator over path
+        assert_eq!(2, found.into_iter().count());
+        
         Ok(())
     }
 ````
@@ -127,19 +131,24 @@ The [`Found`](crate::report::Found) struct contains following fields:
 * path - the discovered path, a vec of [`Certificate`](crate::Certificate) The path includes the target certificate. Per [RFC 5246](https://datatracker.ietf.org/doc/html/rfc5246#section-7.4.2), the path is ordered starting with the target, toward the trust anchor.
 * origin - the path [`CertificateOrigin`](crate::report::CertificateOrigin) 
 
+[`Found`](crate::report::Found) is also an iterator over references of members of `path`.
+
 #### CertificateOrigin
 [`CertificateOrigin`](crate::report::CertificateOrigin) is an enum that describes the origin of each certificate. Can be one of:
 
-1. `Target`: the initial certificate when calling [`X509PathFinder::find`](crate::X509PathFinder::find).
-2. `Store`: certificate was found in the store
-3. `Url`: certificate was downloaded from a URL (AIA)
+* `Target`: the initial certificate when calling [`X509PathFinder::find`](crate::X509PathFinder::find).
+* `Store`: certificate was found in the store
+* `Url`: certificate was downloaded from a URL (AIA)
 
 #### ValidateFailure
 
 [`ValidationFailure`](crate::report::ValidationFailure) stores any validation failures. Validation failures can occur even though a valid certificate path was eventually discovered. `ValidateFailure` contains the following fields:
 
-1. `origin`: the [`CertificateOrigin`](crate::report::CertificateOrigin) of where the validation error occurred
-2. `reason`: human-readable reason for the failure
+* `path` - Vec path of [`Certificate`](crate::Certificate) where the validation error occurred
+* `origin`: the [`CertificateOrigin`](crate::report::CertificateOrigin) of where the validation error occurred
+* `reason`: human-readable reason for the failure
+
+[`ValidationFailure`](crate::report::ValidationFailure) is also an iterator over references of members of `path`.
 
 ## API
 

@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display};
 
 /// Certificate path validation. Implement to customize behavior. Note: X509 certificate [path validation](https://datatracker.ietf.org/doc/html/rfc5280#section-6) is not
 /// trivial. Implement to add business logic, but leverage a trusted X509 validator within.
-pub trait PathValidator {
+pub trait PathValidator: 'static + Sync + Send {
     /// Error type
     type PathValidatorError: PathValidatorError;
 

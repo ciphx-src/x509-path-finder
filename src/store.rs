@@ -1,11 +1,11 @@
 use crate::certificate::Certificate;
 use crate::report::CertificateOrigin;
 use std::collections::{btree_set, BTreeSet};
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct CertificateStore {
-    certificates: BTreeSet<Rc<Certificate>>,
+    certificates: BTreeSet<Arc<Certificate>>,
     serial: usize,
 }
 
@@ -16,7 +16,7 @@ impl CertificateStore {
             serial: 0,
         }
     }
-    pub fn issuers(&self, subject: &Certificate) -> Vec<Rc<Certificate>> {
+    pub fn issuers(&self, subject: &Certificate) -> Vec<Arc<Certificate>> {
         self.certificates
             .iter()
             .filter_map(|c| {
@@ -29,13 +29,13 @@ impl CertificateStore {
             .collect()
     }
 
-    pub fn insert(&mut self, mut certificate: Certificate) -> Option<Rc<Certificate>> {
+    pub fn insert(&mut self, mut certificate: Certificate) -> Option<Arc<Certificate>> {
         if certificate.issued(&certificate) {
             return None;
         }
         self.serial += 1;
         certificate.set_ord(self.serial);
-        let certificate = Rc::new(certificate);
+        let certificate = Arc::new(certificate);
         self.certificates.insert(certificate.clone());
         Some(certificate)
     }
@@ -48,8 +48,8 @@ impl Default for CertificateStore {
 }
 
 impl IntoIterator for CertificateStore {
-    type Item = Rc<Certificate>;
-    type IntoIter = btree_set::IntoIter<Rc<Certificate>>;
+    type Item = Arc<Certificate>;
+    type IntoIter = btree_set::IntoIter<Arc<Certificate>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.certificates.into_iter()

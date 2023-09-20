@@ -2,6 +2,7 @@ use crate::api::{CertificatePathValidation, PathValidator};
 use crate::provided::validator::default::result::DefaultPathValidatorError;
 use x509_cert::Certificate;
 
+#[derive(Clone)]
 pub struct TestPathValidator {
     store: Vec<Certificate>,
 }

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::certificate::Certificate;
 use crate::report::CertificateOrigin;
@@ -8,8 +8,8 @@ use url::Url;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Edge {
-    Certificate(Rc<Certificate>),
-    Url(Rc<Url>, Rc<Certificate>),
+    Certificate(Arc<Certificate>),
+    Url(Arc<Url>, Arc<Certificate>),
     End,
 }
 
@@ -54,7 +54,7 @@ impl Edges {
         }
     }
 
-    fn path_set(&self, target: &Edge) -> HashSet<Rc<Certificate>> {
+    fn path_set(&self, target: &Edge) -> HashSet<Arc<Certificate>> {
         let mut path = HashSet::new();
 
         let mut current_edge = Some(target);
@@ -68,14 +68,14 @@ impl Edges {
         path
     }
 
-    pub fn path(&self, target: &Edge) -> (Vec<Rc<Certificate>>, Vec<CertificateOrigin>) {
+    pub fn path(&self, target: &Edge) -> (Vec<Arc<crate::Certificate>>, Vec<CertificateOrigin>) {
         let mut path = vec![];
         let mut path_origin = vec![];
 
         let mut current_edge = Some(target);
         while let Some(edge) = current_edge {
             if let Edge::Certificate(certificate) = &edge {
-                path.push(certificate.clone());
+                path.push(certificate.inner().clone());
                 path_origin.push(certificate.origin().clone());
             }
             current_edge = self.parents.get(edge);

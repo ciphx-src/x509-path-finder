@@ -2,6 +2,7 @@ use crate::report::CertificateOrigin;
 use crate::tests::test_validator::TestPathValidator;
 use crate::{TestAIA, X509PathFinder, X509PathFinderConfiguration};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 use url::Url;
 use x509_path_finder_material::generate::CertificatePathGenerator;
@@ -17,24 +18,27 @@ async fn test_limit() {
     let mut aia = HashMap::new();
     aia.insert(
         Url::parse("test://1.authority").unwrap(),
-        certificates[0].clone(),
+        Arc::new(certificates[0].clone()),
     );
 
-    let search = X509PathFinder::new(X509PathFinderConfiguration {
+    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::from_millis(500),
         aia: Some(TestAIA {
             certificates: aia.clone(),
             sleep: Some(Duration::from_millis(200)),
         }),
-        validator: &validator,
-        certificates: vec![ee.clone()],
+        validator: validator.clone(),
+        certificates: vec![ee.clone().into()],
     });
 
     let report = search.find(ee.clone()).await.unwrap();
     let found = report.found.unwrap();
 
     assert_eq!(0, report.failures.len());
-    assert_eq!(vec![ee.clone(), certificates[0].clone()], found.path);
+    assert_eq!(
+        vec![Arc::new(ee.clone()), Arc::new(certificates[0].clone())],
+        found.path
+    );
     assert_eq!(
         vec![
             CertificateOrigin::Target,
@@ -43,14 +47,14 @@ async fn test_limit() {
         found.origin
     );
 
-    let search = X509PathFinder::new(X509PathFinderConfiguration {
+    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::from_millis(100),
         aia: Some(TestAIA {
             certificates: aia,
             sleep: Some(Duration::from_millis(200)),
         }),
-        validator: &validator,
-        certificates: vec![ee.clone()],
+        validator: validator.clone(),
+        certificates: vec![ee.clone().into()],
     });
 
     assert!(search.find(ee.clone()).await.is_err());
@@ -66,34 +70,39 @@ async fn test_self_signed() {
 
     let validator = TestPathValidator::new(vec![root.clone()]);
 
-    let search = X509PathFinder::new(X509PathFinderConfiguration {
+    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: None,
-        validator: &validator,
-        certificates: vec![root.clone()],
+        validator,
+        certificates: vec![],
     });
 
     let report = search.find(root.clone()).await.unwrap();
     let found = report.found.unwrap();
 
     assert_eq!(0, report.failures.len());
-    assert_eq!(vec![root], found.path);
+    assert_eq!(vec![Arc::new(root)], found.path);
     assert_eq!(vec![CertificateOrigin::Target,], found.origin);
 }
 
 #[tokio::test]
 async fn test_direct_path_no_aia() {
-    let mut certificates = CertificatePathGenerator::generate(8, "0").unwrap();
+    let mut certificates = CertificatePathGenerator::generate(8, "0")
+        .unwrap()
+        .into_iter()
+        .map(|c| Arc::new(c))
+        .collect::<Vec<Arc<crate::Certificate>>>();
     let root = certificates.pop().unwrap();
     let expected = certificates.clone();
+
     let ee = certificates.remove(0);
 
-    let validator = TestPathValidator::new(vec![root]);
+    let validator = TestPathValidator::new(vec![root.as_ref().clone()]);
 
-    let search = X509PathFinder::new(X509PathFinderConfiguration {
+    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: None,
-        validator: &validator,
+        validator,
         certificates,
     });
 
@@ -118,7 +127,11 @@ async fn test_direct_path_no_aia() {
 
 #[tokio::test]
 async fn test_cross_first_no_aia() {
-    let mut authority1_certificates = CertificatePathGenerator::generate(8, "authority1").unwrap();
+    let mut authority1_certificates = CertificatePathGenerator::generate(8, "authority1")
+        .unwrap()
+        .into_iter()
+        .map(|c| c.into())
+        .collect::<Vec<Arc<crate::Certificate>>>();
     let authority1_root = authority1_certificates.pop().unwrap();
     let authority1_ee = authority1_certificates[0].clone();
     let authority1_ic = authority1_certificates[1].clone();
@@ -132,15 +145,18 @@ async fn test_cross_first_no_aia() {
         CertificatePathGenerator::cross(&authority2_root, &authority2_root_key, &authority1_ic)
             .unwrap();
 
-    let mut cached_certificates_cross_first = vec![cross.clone()];
+    let mut cached_certificates_cross_first = vec![Arc::new(cross.clone())];
     cached_certificates_cross_first.extend(authority1_certificates.clone());
 
-    let validator = TestPathValidator::new(vec![authority1_root, authority2_root]);
+    let validator = TestPathValidator::new(vec![
+        authority1_root.as_ref().clone(),
+        authority2_root.clone(),
+    ]);
 
     let report = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: None,
-        validator: &validator,
+        validator,
         certificates: cached_certificates_cross_first,
     })
     .find(authority1_ee.clone())
@@ -150,7 +166,7 @@ async fn test_cross_first_no_aia() {
     let found = report.found.unwrap();
 
     assert_eq!(0, report.failures.len());
-    assert_eq!(vec![authority1_ee.clone(), cross], found.path);
+    assert_eq!(vec![authority1_ee.clone(), Arc::new(cross)], found.path);
     assert_eq!(
         vec![CertificateOrigin::Target, CertificateOrigin::Store,],
         found.origin
@@ -159,7 +175,11 @@ async fn test_cross_first_no_aia() {
 
 #[tokio::test]
 async fn test_cross_last_no_aia() {
-    let mut authority1_certificates = CertificatePathGenerator::generate(8, "authority1").unwrap();
+    let mut authority1_certificates = CertificatePathGenerator::generate(8, "authority1")
+        .unwrap()
+        .into_iter()
+        .map(|c| c.into())
+        .collect::<Vec<Arc<crate::Certificate>>>();
     let authority1_root = authority1_certificates.pop().unwrap();
     let authority1_ee = authority1_certificates[0].clone();
     let authority1_ic = authority1_certificates[1].clone();
@@ -174,14 +194,14 @@ async fn test_cross_last_no_aia() {
             .unwrap();
 
     let mut cached_certificates_cross_last = authority1_certificates.clone();
-    cached_certificates_cross_last.push(cross.clone());
+    cached_certificates_cross_last.push(Arc::new(cross.clone()));
 
-    let validator = TestPathValidator::new(vec![authority1_root, authority2_root]);
+    let validator = TestPathValidator::new(vec![authority1_root.as_ref().clone(), authority2_root]);
 
     let report = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: None,
-        validator: &validator,
+        validator,
         certificates: cached_certificates_cross_last,
     })
     .find(authority1_ee.clone())
@@ -208,7 +228,11 @@ async fn test_cross_last_no_aia() {
 
 #[tokio::test]
 async fn test_cross_first_dead_end_no_aia() {
-    let mut authority1_certificates = CertificatePathGenerator::generate(8, "authority1").unwrap();
+    let mut authority1_certificates = CertificatePathGenerator::generate(8, "authority1")
+        .unwrap()
+        .into_iter()
+        .map(|c| c.into())
+        .collect::<Vec<Arc<crate::Certificate>>>();
     let authority1_root = authority1_certificates.pop().unwrap();
     let authority1_ee = authority1_certificates[0].clone();
     let authority1_ic = authority1_certificates[1].clone();
@@ -222,15 +246,15 @@ async fn test_cross_first_dead_end_no_aia() {
         CertificatePathGenerator::cross(&authority2_root, &authority2_root_key, &authority1_ic)
             .unwrap();
 
-    let mut cached_certificates_cross_first = vec![cross.clone()];
+    let mut cached_certificates_cross_first = vec![Arc::new(cross.clone())];
     cached_certificates_cross_first.extend(authority1_certificates.clone());
 
-    let validator = TestPathValidator::new(vec![authority1_root]);
+    let validator = TestPathValidator::new(vec![authority1_root.as_ref().clone()]);
 
     let report = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: None,
-        validator: &validator,
+        validator,
         certificates: cached_certificates_cross_first,
     })
     .find(authority1_ee.clone())
@@ -259,7 +283,11 @@ async fn test_cross_first_dead_end_no_aia() {
 async fn test_direct_path_only_aia() {
     let mut certificates = CertificatePathGenerator::generate(8, "authority").unwrap();
     let root = certificates.pop().unwrap();
-    let expected = certificates.clone();
+    let expected = certificates
+        .clone()
+        .into_iter()
+        .map(|c| Arc::new(c))
+        .collect::<Vec<Arc<crate::Certificate>>>();
     let ee = certificates.remove(0);
 
     let aia_kp = certificates
@@ -269,23 +297,23 @@ async fn test_direct_path_only_aia() {
         .map(|(n, c)| {
             (
                 Url::parse(format!("test://{}.authority", (n + 1)).as_str()).unwrap(),
-                c.clone(),
+                Arc::new(c.clone()),
             )
         })
         .rev()
-        .collect::<Vec<(Url, crate::Certificate)>>();
+        .collect::<Vec<(Url, Arc<crate::Certificate>)>>();
 
-    let aia: HashMap<Url, crate::Certificate> = HashMap::from_iter(aia_kp.clone());
+    let aia: HashMap<Url, Arc<crate::Certificate>> = HashMap::from_iter(aia_kp.clone());
 
     let validator = TestPathValidator::new(vec![root]);
 
-    let search = X509PathFinder::new(X509PathFinderConfiguration {
+    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: Some(TestAIA {
             certificates: aia,
             sleep: None,
         }),
-        validator: &validator,
+        validator,
         certificates: vec![],
     });
 
@@ -310,7 +338,11 @@ async fn test_direct_path_only_aia() {
 
 #[tokio::test]
 async fn test_direct_path_partial_aia() {
-    let mut certificates = CertificatePathGenerator::generate(8, "authority").unwrap();
+    let mut certificates = CertificatePathGenerator::generate(8, "authority")
+        .unwrap()
+        .into_iter()
+        .map(|c| c.into())
+        .collect::<Vec<Arc<crate::Certificate>>>();
     let root = certificates.pop().unwrap();
     let expected = certificates.clone();
     let ee = certificates.remove(0);
@@ -326,19 +358,19 @@ async fn test_direct_path_partial_aia() {
             )
         })
         .rev()
-        .collect::<Vec<(Url, crate::Certificate)>>();
+        .collect::<Vec<(Url, Arc<crate::Certificate>)>>();
 
-    let aia: HashMap<Url, crate::Certificate> = HashMap::from_iter(aia_kp.clone());
+    let aia: HashMap<Url, Arc<crate::Certificate>> = HashMap::from_iter(aia_kp.clone());
 
-    let validator = TestPathValidator::new(vec![root]);
+    let validator = TestPathValidator::new(vec![root.as_ref().clone()]);
 
-    let search = X509PathFinder::new(X509PathFinderConfiguration {
+    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: Some(TestAIA {
             certificates: aia,
             sleep: None,
         }),
-        validator: &validator,
+        validator,
         certificates: vec![certificates[2].clone(), certificates[4].clone()],
     });
 
@@ -423,20 +455,20 @@ async fn escape_path_loop() {
 
     let validator = TestPathValidator::new(vec![ta]);
 
-    let search = X509PathFinder::new(X509PathFinderConfiguration {
+    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: None,
-        validator: &validator,
-        certificates: vec![a.clone(), b.clone()],
+        validator: validator.clone(),
+        certificates: vec![a.clone().into(), b.clone().into()],
     });
 
     search.find(target.clone()).await.unwrap().found.unwrap();
 
-    let search = X509PathFinder::new(X509PathFinderConfiguration {
+    let mut search = X509PathFinder::new(X509PathFinderConfiguration {
         limit: Duration::default(),
         aia: None,
-        validator: &validator,
-        certificates: vec![z, y, a, b],
+        validator,
+        certificates: vec![z.into(), y.into(), a.into(), b.into()],
     });
 
     search.find(target).await.unwrap().found.unwrap();
