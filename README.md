@@ -24,7 +24,7 @@ When evaluating a path candidate for validation, X509 Path Finder is implementat
 
 X509 Path Finder provides two [`PathValidator`](crate::api::PathValidator) implementations:
 
-1. [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator) - implemented with [RustCrypto](https://github.com/RustCrypto) and [Rustls](https://github.com/rustls/rustls), available by default.
+1. [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator) - implemented with [rustls-webpki](https://github.com/rustls/webpki), available by default.
 2. [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator) - implemented with [Rust OpenSSL](https://docs.rs/openssl/latest/openssl/), available with the `openssl` feature flag
 
 ### WARNING
@@ -52,7 +52,7 @@ x509_path_finder = { version = "*", features = ["openssl"] }
 
 ```` rust no_run
 
-    use rustls::{Certificate as RustlsCertificate, RootCertStore};
+    use webpki::{KeyUsage, TrustAnchor};
     use std::sync::Arc;
     use std::time::Duration;
     use x509_path_finder::provided::validator::default::DefaultPathValidator;
@@ -63,15 +63,10 @@ x509_path_finder = { version = "*", features = ["openssl"] }
         ic: Vec<Arc<x509_path_finder::Certificate>>,
         ee: x509_path_finder::Certificate,
     ) -> Result<(), x509_path_finder::X509PathFinderError> {
-        // create Rustls store
-        let mut store = RootCertStore::empty();
-
-        // add root certificate to store
-        let root = RustlsCertificate(root);
-        store.add(&root).unwrap();
-
-        // instantiate default validator
-        let validator = DefaultPathValidator::new(store);
+        // instantiate default validator        
+        let root = TrustAnchor::try_from_cert_der(root.as_slice()).unwrap();  
+        let algorithms = &[&webpki::ECDSA_P256_SHA256];
+        let validator = DefaultPathValidator::new(algorithms, vec![root], KeyUsage::client_auth(), &[]);
 
         // instantiate the finder
         let mut search = X509PathFinder::new(X509PathFinderConfiguration {
@@ -156,7 +151,7 @@ The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to 
 
 ### Implementations
 
-* [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator)- validates path with [Rustls](https://github.com/rustls/rustls)
+* [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator)- validates path with [rustls-webpki](https://github.com/rustls/webpki),
 * [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator)- validates path with [OpenSSL](https://docs.rs/openssl/latest/openssl/)
 
 ## TODO
@@ -168,5 +163,4 @@ Ordered by priority:
 * Cache issuer <-> subject mapping while building path
 * Ignore invalid certificates on ingest, rather than wait for [`PathValidator`](crate::api::PathValidator) to reject the entire path candidate
 * Parallelize AIA downloads
-* In `Edge`, consider [`SlotMap`](https://docs.rs/slotmap/latest/slotmap/struct.SlotMap.html) keys + [`HashMap`](https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html) guard over `Rc<Certificate>`
 * Weighted path decisions

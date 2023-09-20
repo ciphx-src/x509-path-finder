@@ -9,7 +9,7 @@ pub type DefaultPathValidatorResult<T> = result::Result<T, DefaultPathValidatorE
 pub enum DefaultPathValidatorError {
     Error(String),
     DerError(der::Error),
-    RustlsError(rustls::Error),
+    WebPkiError(webpki::Error),
 }
 
 impl Display for DefaultPathValidatorError {
@@ -21,8 +21,8 @@ impl Display for DefaultPathValidatorError {
             DefaultPathValidatorError::DerError(e) => {
                 write!(f, "default path validator -> der error: {}", e)
             }
-            DefaultPathValidatorError::RustlsError(e) => {
-                write!(f, "default path validator -> rustls error: {}", e)
+            DefaultPathValidatorError::WebPkiError(e) => {
+                write!(f, "default path validator -> webpki error: {}", e)
             }
         }
     }
@@ -36,12 +36,11 @@ impl From<der::Error> for DefaultPathValidatorError {
     }
 }
 
-impl From<rustls::Error> for DefaultPathValidatorError {
-    fn from(e: rustls::Error) -> Self {
-        Self::RustlsError(e)
+impl From<webpki::Error> for DefaultPathValidatorError {
+    fn from(e: webpki::Error) -> Self {
+        Self::WebPkiError(e)
     }
 }
-
 impl From<DefaultPathValidatorError> for X509PathFinderError {
     fn from(e: DefaultPathValidatorError) -> Self {
         Self::PathValidatorError(Box::new(e))

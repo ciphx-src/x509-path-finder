@@ -18,7 +18,7 @@ bytes = { version = "1" }
 url = { version = "2.4.0" }
 sha2 = { version = "0.10.7" }
 openssl = { version = "0.10.56", features = ["vendored"], optional = true }
-rustls = { version = "0.21.7", features = ["dangerous_configuration"], optional = true }
+rustls-webpki = { version = "0.101.5", optional = true }
 x509-cert = { version = "0.2.4", features = ["pem"] }
 der = { version = "0.7.6", features = ["alloc", "derive", "flagset", "oid"] }
 x509-client = { version = "2.0.1" }
@@ -29,7 +29,7 @@ openssl = { version = "0.10.56", features = ["vendored"], optional = false }
 x509-path-finder-material = { path = "./material" }
 
 [features]
-default = ["rustls"]
+default = ["rustls-webpki"]
 openssl = ["dep:openssl", "x509-client/openssl"]
 
 [package.metadata.docs.rs]
