@@ -151,7 +151,7 @@ The X509 [`PathValidator`](crate::api::PathValidator) API can be implemented to 
 
 ### Implementations
 
-* [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator)- validates path with [rustls-webpki](https://github.com/rustls/webpki),
+* [DefaultPathValidator](crate::provided::validator::default::DefaultPathValidator)- validates path with [rustls-webpki](https://github.com/rustls/webpki)
 * [OpenSSLPathValidator](crate::provided::validator::openssl::OpenSSLPathValidator)- validates path with [OpenSSL](https://docs.rs/openssl/latest/openssl/)
 
 ## TODO

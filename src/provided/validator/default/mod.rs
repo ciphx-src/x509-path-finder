@@ -17,7 +17,15 @@ pub struct DefaultPathValidator<'a> {
 }
 
 impl<'a> DefaultPathValidator<'a> {
-    /// Constructor takes a configured Rustls store
+    /// Constructor takes arguments from [`verify_for_usage()`](https://docs.rs/rustls-webpki/0.101.5/webpki/struct.EndEntityCert.html#method.verify_for_usage)
+    /// * `algorithms` is the list of signature algorithms that are
+    ///   trusted for use in certificate signatures; the end-entity certificate's
+    ///   public key is not validated against this list.
+    /// * `roots` is the list of root CAs to trust
+    /// * `usage` is the intended usage of the certificate, indicating what kind
+    ///   of usage we're verifying the certificate for.
+    /// * `crls` is the list of certificate revocation lists to check
+    ///   the certificate against.
     pub fn new(
         algorithms: &'a [&'a SignatureAlgorithm],
         roots: Vec<TrustAnchor<'a>>,
